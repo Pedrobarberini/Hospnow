@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <title>Meu Plano - HospNow</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<nav class="navbar">
+    <div class="container">
+        <a href="../index.html" class="nav-brand">HospNow</a>
+        <ul class="nav-links">
+            <li><a href="hospitais.html">Hospitais</a></li>
+            <li><a href="plano.html">Meu Plano</a></li>
+            <li><a href="perfil.html">Perfil</a></li>
+            <li><a href="configuracoes.html">Configurações</a></li>
+            <li><a href="cadastro.html">Cadastrar Hospital</a></li>
+        </ul>
+    </div>
+</nav>    
+    <main class="container">
+        <h2>Meu Plano de Saúde</h2>
+        <div class="card">
+            <p>Selecione seu plano para que possamos filtrar os hospitais que o aceitam.</p>
+            <form id="plano-form">
+                <label for="plano-select">Seu plano:</label>
+                <select id="plano-select" name="plano">
+                    <option value="nenhum">Não possuo plano</option>
+                    <option value="amil">Amil</option>
+                    <option value="bradesco">Bradesco Saúde</option>
+                    <option value="sulamerica">SulAmérica</option>
+                    <option value="unimed">Unimed</option>
+                </select>
+                <button type="submit">Salvar Plano</button>
+            </form>
+            <p id="feedback-message" class="feedback"></p>
+        </div>
+    </main>
+    <script src="js/main.js"></script>
+</body>
+</html>

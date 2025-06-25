@@ -1,0 +1,223 @@
+/* Estilo para um visual limpo e moderno */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    background-color: #f4f7f6;
+    color: #333;
+}
+
+header {
+    background-color: #007BFF;
+    color: white;
+    padding: 20px;
+    text-align: center;
+}
+
+.search-section {
+    padding: 40px 20px;
+    text-align: center;
+}
+
+#search-input {
+    width: 50%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+#search-button {
+    padding: 12px 20px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.results-container {
+    padding: 20px;
+}
+
+.hospital-card {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+/* Definição de variáveis de cor para o design clean */
+:root {
+    --primary-color: #007BFF;
+    --secondary-color: #f4f7f6;
+    --font-color: #333;
+    --light-gray: #e9ecef;
+    --white-color: #ffffff;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+}
+
+/* Reset Básico e Tipografia */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding-top: 70px; /* Espaço para a navbar fixa */
+    background-color: var(--secondary-color);
+    color: var(--font-color);
+}
+
+.container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Barra de Navegação */
+.navbar {
+    background-color: var(--white-color);
+    border-bottom: 1px solid var(--light-gray);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+}
+
+.navbar .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.nav-brand {
+    font-weight: bold;
+    font-size: 1.5rem;
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.nav-links {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+}
+
+.nav-links li {
+    margin-left: 20px;
+}
+
+.nav-links a {
+    text-decoration: none;
+    color: var(--font-color);
+    transition: color 0.3s;
+}
+
+.nav-links a:hover {
+    color: var(--primary-color);
+}
+
+/* Estilos de Formulário */
+form {
+    display: flex;
+    gap: 10px;
+}
+input[type="text"], select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+button {
+    padding: 12px 20px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+button:hover {
+    background-color: #0056b3;
+}
+
+/* Cards */
+.card {
+    background: var(--white-color);
+    border: 1px solid var(--light-gray);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+.card h3 {
+    margin-top: 0;
+}
+
+/* Página Inicial */
+.hero-section {
+    text-align: center;
+    padding: 60px 0;
+}
+
+/* Página de Hospitais */
+.hospital-card {
+    background: var(--white-color);
+    border: 1px solid var(--light-gray);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.hospital-card h3 { margin-top: 0; }
+.feedback { color: var(--success-color); }
+.link-perigoso { color: var(--danger-color); }
+
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box;
+}
+
+button {
+    padding: 12px 20px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+#hospitais-lista .card p {
+    margin: 5px 0;
+}
+
+#map {
+    height: 450px;
+    width: 100%;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+.Cadastrar {
+    width: 10.5rem;
+    height: 3.5rem;
+}

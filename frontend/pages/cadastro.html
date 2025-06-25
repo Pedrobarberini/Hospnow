@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastrar Hospital - HospNow</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <a href="index.html" class="nav-brand">HospNow</a>
+            <ul class="nav-links">
+                <li><a href="hospitais.html">Hospitais</a></li>
+                <li><a href="plano.html">Meu Plano</a></li>
+                <li><a href="perfil.html">Perfil</a></li>
+                <li><a href="configuracoes.html">Configurações</a></li>
+                <li><a href="cadastro.html">Cadastrar Hospital</a></li>
+            </ul>
+        </div>
+    </nav>
+    <main class="container">
+        <h1>Cadastro de Novo Hospital</h1>
+        <div class="card">
+            <form id="cadastro-form">
+                <div class="form-group">
+                    <label for="name">Nome do Hospital</label>
+                    <input type="text" id="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="endereco">Endereço</label>
+                    <input type="text" id="endereco" required>
+                </div>
+                <div class="form-group">
+                    <label for="lat">Latitude</label>
+                    <input type="number" step="any" id="lat" required>
+                </div>
+                <div class="form-group">
+                    <label for="lng">Longitude</label>
+                    <input type="number" step="any" id="lng" required>
+                </div>
+                <div class="form-group">
+                    <label for="specialties">Especialidades </label>
+                    <input type="text" id="specialties" required>
+                </div>
+                <button type="submit" class="Cadastrar">Cadastrar</button>
+            </form>
+        </div>
+    </main>
+    <script src="js/api.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
