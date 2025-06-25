@@ -229,3 +229,24 @@ button:hover {
     text-align: center;
     margin-bottom: 20px;
 }
+ 
+gmp-map {
+  height: 100%;
+}
+
+.mapgoogle {
+        padding-top: 2.5rem;
+        padding-left: 15rem;
+        height: 30rem;
+        width: 50rem;
+        margin: 0;
+        display: block;
+      }
+
+.place-picker-container {
+        padding: 20px;
+      }
+
+#centro{
+    text-align: center;
+}
