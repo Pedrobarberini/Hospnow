@@ -230,10 +230,6 @@ button:hover {
     margin-bottom: 20px;
 }
  
-gmp-map {
-  height: 100%;
-}
-
 .mapgoogle {
         padding-top: 2.5rem;
         padding-left: 15rem;
