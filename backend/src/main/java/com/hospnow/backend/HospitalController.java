@@ -9,16 +9,16 @@ import java.util.List;
 @CrossOrigin(origins = "*") 
 public class HospitalController {
 
-    @Autowired // Injeção de dependência: O Spring nos dará uma instância do HospitalService
+    @Autowired // Injeção de dependência
     private HospitalService hospitalService;
 
-    // ROTA PARA LISTAR TODOS OS HOSPITAIS (GET /api/hospitais)
+    // ROTA PARA LISTAR TODOS OS HOSPITAIS
     @GetMapping
     public List<Hospital> getHospitais() {
         return hospitalService.getAllHospitals();
     }
 
-    // ROTA PARA CADASTRAR UM NOVO HOSPITAL (POST /api/hospitais)
+    // ROTA PARA CADASTRAR UM NOVO HOSPITAL 
     @PostMapping
     public Hospital createHospital(@RequestBody Hospital hospital) {
         return hospitalService.addHospital(hospital);

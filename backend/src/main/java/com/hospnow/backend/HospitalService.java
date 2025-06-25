@@ -5,10 +5,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-@Service // Indica ao Spring que esta é uma classe de serviço (lógica de negócio)
+@Service 
 public class HospitalService {
 
-    // Nosso banco de dados em memória
+    // Banco de dados em memória
     private final List<Hospital> hospitais = new ArrayList<>();
     // Um contador seguro para gerar novos IDs
     private final AtomicLong counter = new AtomicLong();

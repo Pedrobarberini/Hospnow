@@ -54,6 +54,6 @@ async function createHospital(hospitalData) {
         return data;
     } catch (error) {
         console.error(error);
-        return null; // Retorna nulo em caso de erro
+        return null; 
     }
 }
