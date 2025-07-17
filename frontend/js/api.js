@@ -28,7 +28,7 @@ const API_URL = 'http://localhost:8080/api';
 
 async function getHospitals() {
     try {
-        const response = await fetch(`${API_URL}/hospitais`);
+        const response = await fetch(`http://localhost:8080/api/hospitais`);
         if (!response.ok) {
             throw new Error('Erro ao buscar hospitais');
         }
