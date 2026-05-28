@@ -22,6 +22,7 @@ public class UserController {
     public User criar(@RequestBody @Valid UserRequestDTO dto) {
         return service.salvar(dto);
     }
+    
 
     @GetMapping
     public List<User> listar() {
