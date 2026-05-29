@@ -43,13 +43,13 @@ O prefixo `jdbc:` é importante para Spring Boot.
 
 ```txt
 Root Directory: backend/hospnow-api
-Runtime: Java
-Build Command: chmod +x mvnw && ./mvnw clean package -DskipTests
-Start Command: java -jar target/hospnow-0.0.1-SNAPSHOT.jar
+Language: Docker
+Dockerfile Path: Dockerfile
 Instance Type: Free
 ```
 
-5. Em Environment Variables, configure:
+5. Se o Render pedir build/start command, deixe em branco quando estiver usando Docker.
+6. Em Environment Variables, configure:
 
 - `DATABASE_URL`: URL JDBC do Neon
 - `DATABASE_USERNAME`: usuário do Neon
