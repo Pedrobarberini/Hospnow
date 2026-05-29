@@ -71,12 +71,14 @@ No GitHub, configure:
 
 1. `Settings > Pages > Build and deployment > GitHub Actions`
 2. `Settings > Secrets and variables > Actions > Variables`
-3. Crie a variável `VITE_API_URL` com a URL pública do backend.
+3. Opcionalmente, crie a variável `VITE_API_URL` com a URL pública do backend.
 
 Exemplo:
 
 ```txt
 VITE_API_URL=https://hospnow-api.onrender.com
 ```
+
+Se essa variável não existir, o frontend publicado usa `https://hospnow.onrender.com` como URL de produção.
 
 Depois disso, rode novamente o workflow do GitHub Pages.
