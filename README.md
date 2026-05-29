@@ -24,16 +24,6 @@ Na aplicação, o usuário pode:
 - Comparar a própria localização com a localização dos hospitais.
 - Ordenar os hospitais mais próximos.
 
-## Texto Para Portfólio
-
-O HospNow é uma plataforma full stack desenvolvida para simular a busca por hospitais e clínicas compatíveis com planos de saúde. A aplicação conecta um frontend em React a uma API REST em Spring Boot, utilizando PostgreSQL como banco de dados relacional.
-
-No frontend, o usuário consegue visualizar hospitais em cards, aplicar filtros por plano de saúde e especialidade médica, utilizar geolocalização, informar um endereço manualmente e acompanhar os resultados em um mapa interativo com OpenStreetMap e Leaflet.
-
-No backend, a aplicação organiza entidades como usuários, hospitais, planos de saúde e especialidades médicas, com relacionamentos muitos-para-muitos entre hospitais, planos e especialidades. A API expõe endpoints REST para listagem, cadastro e busca filtrada dos dados.
-
-O projeto também foi preparado para deploy gratuito, utilizando GitHub Pages para o frontend, Render para o backend em Docker e Neon como banco PostgreSQL em nuvem. Além da implementação funcional, o projeto demonstra boas práticas de separação entre frontend e backend, configuração por variáveis de ambiente, proteção de credenciais sensíveis e integração entre serviços externos.
-
 ## Tecnologias Utilizadas
 
 ### Frontend
