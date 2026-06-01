@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   CircleMarker,
   MapContainer,
@@ -20,6 +20,7 @@ interface MapViewProps {
   onAddressChange?: (address: string) => void;
   onAddressSubmit?: () => void;
   onUseLocation?: () => void;
+  selectedHospitalId?: number | null;
   userLocation?: UserLocation | null;
 }
 
@@ -38,14 +39,33 @@ const markerIcon = L.divIcon({
   popupAnchor: [0, -30],
 });
 
+const selectedMarkerIcon = L.divIcon({
+  className: "hospital-marker hospital-marker--selected",
+  html: '<span class="hospital-marker__pin"></span>',
+  iconSize: [42, 42],
+  iconAnchor: [21, 42],
+  popupAnchor: [0, -40],
+});
+
 function isValidCoordinate(hospital: Hospital) {
-  return Number.isFinite(hospital.latitude) && Number.isFinite(hospital.longitude);
+  return (
+    Number.isFinite(hospital.latitude) &&
+    Number.isFinite(hospital.longitude)
+  );
 }
 
-function MapBounds({ hospitals, userLocation }: MapViewProps) {
+function MapBounds({
+  hospitals,
+  selectedHospitalId,
+  userLocation,
+}: Pick<MapViewProps, "hospitals" | "selectedHospitalId" | "userLocation">) {
   const map = useMap();
 
   useEffect(() => {
+    if (selectedHospitalId) {
+      return;
+    }
+
     const visibleHospitals = hospitals.filter(isValidCoordinate);
     const points = visibleHospitals.map((hospital) => [
       hospital.latitude,
@@ -64,9 +84,78 @@ function MapBounds({ hospitals, userLocation }: MapViewProps) {
       const bounds = L.latLngBounds(points);
       map.fitBounds(bounds, { padding: [36, 36], maxZoom: 14 });
     }
-  }, [hospitals, map, userLocation]);
+  }, [hospitals, map, selectedHospitalId, userLocation]);
 
   return null;
+}
+
+function FocusSelectedHospital({ hospital }: { hospital?: Hospital }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!hospital || !isValidCoordinate(hospital)) {
+      return;
+    }
+
+    map.flyTo([hospital.latitude, hospital.longitude], 15, {
+      duration: 0.7,
+    });
+  }, [hospital, map]);
+
+  return null;
+}
+
+function HospitalPopup({ hospital }: { hospital: Hospital }) {
+  const planNames = hospital.planos.map((plan) => plan.nome);
+  const specialtyNames =
+    hospital.especialidades?.map((specialty) => specialty.nome) ?? [];
+
+  return (
+    <div className="hospital-popup">
+      <strong>{hospital.nome || "Hospital sem nome"}</strong>
+      <p>
+        <span>Endereço</span>
+        {hospital.endereco || "Endereço não informado"}
+      </p>
+      <p>
+        <span>Telefone</span>
+        {hospital.telefone || "Não informado"}
+      </p>
+      <div className="hospital-popup__tags">
+        {planNames.map((planName) => (
+          <small key={planName}>{planName}</small>
+        ))}
+        {specialtyNames.map((specialtyName) => (
+          <small key={specialtyName}>{specialtyName}</small>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SelectedHospitalMarker({ hospital }: { hospital: Hospital }) {
+  const markerRef = useRef<L.Marker | null>(null);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      markerRef.current?.openPopup();
+    }, 260);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [hospital.id]);
+
+  return (
+    <Marker
+      icon={selectedMarkerIcon}
+      position={[hospital.latitude, hospital.longitude]}
+      ref={markerRef}
+      zIndexOffset={1000}
+    >
+      <Popup>
+        <HospitalPopup hospital={hospital} />
+      </Popup>
+    </Marker>
+  );
 }
 
 export function MapView({
@@ -78,9 +167,13 @@ export function MapView({
   onAddressChange,
   onAddressSubmit,
   onUseLocation,
+  selectedHospitalId,
   userLocation,
 }: MapViewProps) {
   const visibleHospitals = hospitals.filter(isValidCoordinate);
+  const selectedHospital = visibleHospitals.find(
+    (hospital) => hospital.id === selectedHospitalId
+  );
   const center =
     userLocation
       ? [userLocation.latitude, userLocation.longitude]
@@ -153,8 +246,10 @@ export function MapView({
 
           <MapBounds
             hospitals={visibleHospitals}
+            selectedHospitalId={selectedHospitalId}
             userLocation={userLocation}
           />
+          <FocusSelectedHospital hospital={selectedHospital} />
 
           {userLocation && (
             <CircleMarker
@@ -170,19 +265,23 @@ export function MapView({
             </CircleMarker>
           )}
 
-          {visibleHospitals.map((hospital) => (
-            <Marker
-              icon={markerIcon}
-              key={hospital.id}
-              position={[hospital.latitude, hospital.longitude]}
-            >
-              <Popup>
-                <strong>{hospital.nome || "Hospital sem nome"}</strong>
-                <br />
-                {hospital.endereco || "Endereço não informado"}
-              </Popup>
-            </Marker>
-          ))}
+          {visibleHospitals
+            .filter((hospital) => hospital.id !== selectedHospital?.id)
+            .map((hospital) => (
+              <Marker
+                icon={markerIcon}
+                key={hospital.id}
+                position={[hospital.latitude, hospital.longitude]}
+              >
+                <Popup>
+                  <HospitalPopup hospital={hospital} />
+                </Popup>
+              </Marker>
+            ))}
+
+          {selectedHospital && (
+            <SelectedHospitalMarker hospital={selectedHospital} />
+          )}
         </MapContainer>
       </div>
     </section>

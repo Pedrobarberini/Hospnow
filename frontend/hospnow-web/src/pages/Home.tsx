@@ -21,6 +21,9 @@ export function Home() {
   const [isSearchingAddress, setIsSearchingAddress] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [sortByDistance, setSortByDistance] = useState(false);
+  const [selectedHospitalId, setSelectedHospitalId] = useState<number | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -65,8 +68,10 @@ export function Home() {
           : await getHospitals();
 
       setHospitals(hospitalsData);
+      setSelectedHospitalId(null);
     } catch {
       setHospitals([]);
+      setSelectedHospitalId(null);
       setErrorMessage(
         "Não foi possível filtrar os hospitais para os critérios selecionados."
       );
@@ -351,8 +356,10 @@ export function Home() {
                 {sortedHospitals.map((hospital) => (
                   <HospitalCard
                     distanceInKm={getDistanceInKm(hospital)}
+                    isSelected={hospital.id === selectedHospitalId}
                     key={hospital.id}
                     hospital={hospital}
+                    onSelect={() => setSelectedHospitalId(hospital.id)}
                   />
                 ))}
               </div>
@@ -366,6 +373,7 @@ export function Home() {
               onAddressChange={setAddressInput}
               onAddressSubmit={handleAddressSubmit}
               onUseLocation={handleUseLocation}
+              selectedHospitalId={selectedHospitalId}
               userLocation={userLocation}
             />
           </div>

@@ -1,17 +1,45 @@
+import type { KeyboardEvent } from "react";
 import type { Hospital } from "../types/Hospital";
 
 interface HospitalCardProps {
   hospital: Hospital;
   distanceInKm?: number;
+  isSelected?: boolean;
+  onSelect?: (hospital: Hospital) => void;
 }
 
-export function HospitalCard({ distanceInKm, hospital }: HospitalCardProps) {
+export function HospitalCard({
+  distanceInKm,
+  hospital,
+  isSelected = false,
+  onSelect,
+}: HospitalCardProps) {
   const planNames = hospital.planos.map((plan) => plan.nome);
-  const specialtyNames = hospital.especialidades?.map((specialty) => specialty.nome) ?? [];
+  const specialtyNames =
+    hospital.especialidades?.map((specialty) => specialty.nome) ?? [];
   const hospitalName = hospital.nome || "Hospital sem nome cadastrado";
 
+  function handleKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (!onSelect) {
+      return;
+    }
+
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onSelect(hospital);
+    }
+  }
+
   return (
-    <article className="hospital-card">
+    <article
+      aria-label={`Selecionar ${hospitalName} no mapa`}
+      aria-pressed={isSelected}
+      className={`hospital-card${isSelected ? " hospital-card--selected" : ""}`}
+      onClick={() => onSelect?.(hospital)}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+    >
       <div className="hospital-card__header">
         <div>
           <span className="hospital-card__eyebrow">Hospital parceiro</span>
