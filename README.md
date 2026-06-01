@@ -241,7 +241,7 @@ A base da ANS é grande, então essa importação deve ser usada com limite de l
 O workflow `.github/workflows/official-data-import.yml` atualiza os dados oficiais automaticamente:
 
 - Toda segunda-feira, importa hospitais do CNES para Taboão da Serra, São Paulo, Osasco, Embu das Artes, Cotia e Carapicuíba.
-- No primeiro dia de cada mês, também tenta vincular planos reais da ANS.
+- No primeiro dia de cada mês, também tenta vincular planos reais da ANS lendo apenas os CSVs das UFs importadas.
 - Também pode ser executado manualmente em `Actions > Refresh official health data > Run workflow`.
 
 Para funcionar, cadastre no GitHub:

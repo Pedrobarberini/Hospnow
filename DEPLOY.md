@@ -96,7 +96,7 @@ No GitHub, configure:
 Depois disso, o workflow:
 
 - Roda toda segunda-feira para atualizar hospitais do CNES.
-- Roda no primeiro dia de cada mês para tentar vincular planos da ANS.
+- Roda no primeiro dia de cada mês para tentar vincular planos da ANS lendo apenas os CSVs das UFs importadas.
 - Pode ser acionado manualmente em `Actions > Refresh official health data > Run workflow`.
 
 ## Frontend no GitHub Pages

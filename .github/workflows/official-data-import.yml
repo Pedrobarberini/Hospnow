@@ -15,7 +15,7 @@ on:
       ans_max_rows:
         description: "Maximum ANS rows to scan"
         required: true
-        default: "50000"
+        default: "250000"
   schedule:
     - cron: "0 6 * * 1"
     - cron: "0 7 1 * *"
@@ -34,7 +34,7 @@ jobs:
       API_BASE_URL: ${{ vars.HOSPNOW_API_URL || 'https://hospnow.onrender.com' }}
       IMPORT_KEY: ${{ secrets.ADMIN_IMPORT_KEY }}
       CNES_LIMIT: ${{ inputs.cnes_limit || '40' }}
-      ANS_MAX_ROWS: ${{ inputs.ans_max_rows || '50000' }}
+      ANS_MAX_ROWS: ${{ inputs.ans_max_rows || '250000' }}
       RUN_ANS: ${{ github.event.schedule == '0 7 1 * *' || inputs.run_ans == true }}
     steps:
       - name: Validate configuration

@@ -35,13 +35,18 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
+import java.util.zip.Inflater;
+import java.util.zip.InflaterInputStream;
 
 @Service
 public class OfficialDataImportService {
 
     private static final int CNES_PAGE_SIZE = 20;
+    private static final int ZIP_TAIL_BYTES = 128 * 1024;
+    private static final int ZIP_HEADER_PROBE_BYTES = 64 * 1024;
+    private static final int ZIP_EOCD_SIGNATURE = 0x06054b50;
+    private static final int ZIP_CENTRAL_DIRECTORY_SIGNATURE = 0x02014b50;
+    private static final int ZIP_LOCAL_FILE_HEADER_SIGNATURE = 0x04034b50;
     private static final Charset ANS_FILE_CHARSET = Charset.forName("ISO-8859-1");
     private static final List<Integer> DEFAULT_HOSPITAL_UNIT_TYPES = List.of(5, 7, 62);
     private static final Map<Integer, String> UNIT_TYPES = Map.of(
@@ -135,6 +140,7 @@ public class OfficialDataImportService {
     @Transactional
     public OfficialImportSummary importAnsPlans(Integer maxRows) {
         Map<String, Hospital> hospitalsByCnes = loadHospitalsByCnes();
+        Set<String> targetUfs = loadHospitalUfsByCnes();
 
         if (hospitalsByCnes.isEmpty()) {
             return new OfficialImportSummary(
@@ -148,69 +154,10 @@ public class OfficialDataImportService {
         }
 
         int scanLimit = maxRows == null || maxRows <= 0 ? 250_000 : maxRows;
-        int scannedRows = 0;
-        int importedPlans = 0;
-        int linkedPlans = 0;
-        int skippedRows = 0;
-        Set<String> linkedPairs = new HashSet<>();
+        AnsImportCounters counters = new AnsImportCounters(scanLimit);
 
-        try (BufferedReader reader = openAnsProductsReader()) {
-            String headerLine = reader.readLine();
-
-            if (headerLine == null) {
-                return new OfficialImportSummary(
-                        "ANS - Produtos e Prestadores Hospitalares",
-                        0,
-                        0,
-                        0,
-                        0,
-                        0
-                );
-            }
-
-            char delimiter = detectDelimiter(headerLine);
-            Map<String, Integer> columns = indexColumns(parseCsvLine(stripBom(headerLine), delimiter));
-            int cnesIndex = requiredColumn(columns, "CD_CNES");
-            int planCodeIndex = requiredColumn(columns, "CD_PLANO");
-            int operatorCodeIndex = requiredColumn(columns, "CD_OPERADORA");
-            int operatorNameIndex = requiredColumn(columns, "NO_RAZAO");
-            int modalityIndex = column(columns, "GR_MODALIDADE");
-            int segmentIndex = column(columns, "SEGMENTACAO_ASSISTENCIAL");
-            int coverageIndex = column(columns, "DE_TIPO_ABRANGENCIA_GEOGRAFICA");
-            int planStatusIndex = column(columns, "DE_SITUACAO_PRINCIPAL");
-            int endDateIndex = column(columns, "DT_VINCULO_FIM");
-            int providerClassIndex = column(columns, "DE_CLAS_ESTB_SAUDE");
-
-            String line;
-            while ((line = reader.readLine()) != null && scannedRows < scanLimit) {
-                scannedRows++;
-                List<String> row = parseCsvLine(line, delimiter);
-                String cnes = digits(value(row, cnesIndex));
-                Hospital hospital = hospitalsByCnes.get(cnes);
-
-                if (hospital == null || !isActiveHospitalPlan(row, planStatusIndex, endDateIndex, providerClassIndex)) {
-                    skippedRows++;
-                    continue;
-                }
-
-                String planCode = value(row, planCodeIndex);
-                HealthPlan plan = upsertAnsPlan(
-                        planCode,
-                        value(row, operatorCodeIndex),
-                        value(row, operatorNameIndex),
-                        value(row, modalityIndex),
-                        value(row, segmentIndex),
-                        value(row, coverageIndex),
-                        value(row, planStatusIndex)
-                );
-
-                String pairKey = cnes + "|" + plan.getCodigoAnsPlano();
-                if (linkedPairs.add(pairKey) && linkPlanToHospital(hospital, plan)) {
-                    linkedPlans++;
-                }
-
-                importedPlans++;
-            }
+        try {
+            processAnsProductsFiles(hospitalsByCnes, targetUfs, counters);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Nao foi possivel importar a base da ANS.", exception);
@@ -220,11 +167,11 @@ public class OfficialDataImportService {
 
         return new OfficialImportSummary(
                 "ANS - Produtos e Prestadores Hospitalares",
-                scannedRows,
+                counters.scannedRows,
                 0,
-                importedPlans,
-                linkedPlans,
-                skippedRows
+                counters.importedPlans,
+                counters.linkedPlans,
+                counters.skippedRows
         );
     }
 
@@ -390,8 +337,108 @@ public class OfficialDataImportService {
         return hospitalsByCnes;
     }
 
-    private BufferedReader openAnsProductsReader() throws IOException, InterruptedException {
-        HttpRequest request = HttpRequest.newBuilder(URI.create(ansProductsUrl))
+    private Set<String> loadHospitalUfsByCnes() {
+        Set<String> targetUfs = new HashSet<>();
+
+        hospitalRepository.findAll().stream()
+                .filter(hospital -> !isBlank(hospital.getCodigoCnes()))
+                .filter(hospital -> !isBlank(hospital.getUf()))
+                .map(hospital -> hospital.getUf().trim().toUpperCase(Locale.ROOT))
+                .forEach(targetUfs::add);
+
+        return targetUfs;
+    }
+
+    private void processAnsProductsFiles(
+            Map<String, Hospital> hospitalsByCnes,
+            Set<String> targetUfs,
+            AnsImportCounters counters
+    ) throws IOException, InterruptedException {
+        URI uri = URI.create(ansProductsUrl);
+
+        if (ansProductsUrl.toLowerCase(Locale.ROOT).endsWith(".zip")) {
+            List<RemoteZipEntry> entries = findRemoteZipEntries(uri, targetUfs);
+
+            if (entries.isEmpty()) {
+                throw new IOException("ZIP da ANS nao contem CSV para as UFs importadas.");
+            }
+
+            for (RemoteZipEntry entry : entries) {
+                if (counters.reachedLimit()) {
+                    break;
+                }
+
+                try (BufferedReader reader = openRemoteZipEntryReader(uri, entry)) {
+                    processAnsCsvReader(reader, hospitalsByCnes, counters);
+                }
+            }
+
+            return;
+        }
+
+        try (BufferedReader reader = openAnsCsvReader(uri)) {
+            processAnsCsvReader(reader, hospitalsByCnes, counters);
+        }
+    }
+
+    private void processAnsCsvReader(
+            BufferedReader reader,
+            Map<String, Hospital> hospitalsByCnes,
+            AnsImportCounters counters
+    ) throws IOException {
+        String headerLine = reader.readLine();
+
+        if (headerLine == null) {
+            return;
+        }
+
+        char delimiter = detectDelimiter(headerLine);
+        Map<String, Integer> columns = indexColumns(parseCsvLine(stripBom(headerLine), delimiter));
+        int cnesIndex = requiredColumn(columns, "CD_CNES");
+        int planCodeIndex = requiredColumn(columns, "CD_PLANO");
+        int operatorCodeIndex = requiredColumn(columns, "CD_OPERADORA");
+        int operatorNameIndex = requiredColumn(columns, "NO_RAZAO");
+        int modalityIndex = column(columns, "GR_MODALIDADE");
+        int segmentIndex = column(columns, "SEGMENTACAO_ASSISTENCIAL");
+        int coverageIndex = column(columns, "DE_TIPO_ABRANGENCIA_GEOGRAFICA");
+        int planStatusIndex = column(columns, "DE_SITUACAO_PRINCIPAL");
+        int endDateIndex = column(columns, "DT_VINCULO_FIM");
+        int providerClassIndex = column(columns, "DE_CLAS_ESTB_SAUDE");
+
+        String line;
+        while ((line = reader.readLine()) != null && !counters.reachedLimit()) {
+            counters.scannedRows++;
+            List<String> row = parseCsvLine(line, delimiter);
+            String cnes = digits(value(row, cnesIndex));
+            Hospital hospital = hospitalsByCnes.get(cnes);
+
+            if (hospital == null || !isActiveHospitalPlan(row, planStatusIndex, endDateIndex, providerClassIndex)) {
+                counters.skippedRows++;
+                continue;
+            }
+
+            String planCode = value(row, planCodeIndex);
+            HealthPlan plan = upsertAnsPlan(
+                    planCode,
+                    value(row, operatorCodeIndex),
+                    value(row, operatorNameIndex),
+                    value(row, modalityIndex),
+                    value(row, segmentIndex),
+                    value(row, coverageIndex),
+                    value(row, planStatusIndex)
+            );
+
+            String pairKey = cnes + "|" + plan.getCodigoAnsPlano();
+            if (counters.linkedPairs.add(pairKey) && linkPlanToHospital(hospital, plan)) {
+                counters.linkedPlans++;
+            }
+
+            counters.importedPlans++;
+        }
+    }
+
+    private BufferedReader openAnsCsvReader(URI uri) throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder(uri)
                 .header("Accept", "application/zip,text/csv,*/*")
                 .GET()
                 .build();
@@ -404,25 +451,167 @@ public class OfficialDataImportService {
             throw new IOException("ANS retornou HTTP " + response.statusCode());
         }
 
-        InputStream body = response.body();
-        InputStream csvStream = ansProductsUrl.toLowerCase(Locale.ROOT).endsWith(".zip")
-                ? openFirstZipEntry(body)
-                : body;
+        return new BufferedReader(new InputStreamReader(response.body(), ANS_FILE_CHARSET));
+    }
+
+    private List<RemoteZipEntry> findRemoteZipEntries(
+            URI uri,
+            Set<String> targetUfs
+    ) throws IOException, InterruptedException {
+        long contentLength = fetchContentLength(uri);
+        long tailStart = Math.max(0, contentLength - ZIP_TAIL_BYTES);
+        byte[] tail = fetchRangeBytes(uri, tailStart, contentLength - 1);
+        int eocdOffset = lastIndexOfSignature(tail, ZIP_EOCD_SIGNATURE);
+
+        if (eocdOffset < 0) {
+            throw new IOException("Nao foi possivel ler o diretorio do ZIP da ANS.");
+        }
+
+        long centralDirectorySize = unsignedInt(tail, eocdOffset + 12);
+        long centralDirectoryOffset = unsignedInt(tail, eocdOffset + 16);
+
+        if (centralDirectorySize == 0xffff_ffffL || centralDirectoryOffset == 0xffff_ffffL) {
+            throw new IOException("ZIP64 da ANS nao e suportado por esta importacao.");
+        }
+
+        byte[] centralDirectory = fetchRangeBytes(
+                uri,
+                centralDirectoryOffset,
+                centralDirectoryOffset + centralDirectorySize - 1
+        );
+
+        return parseCentralDirectory(centralDirectory).stream()
+                .filter(entry -> shouldProcessAnsEntry(entry.name(), targetUfs))
+                .toList();
+    }
+
+    private BufferedReader openRemoteZipEntryReader(
+            URI uri,
+            RemoteZipEntry entry
+    ) throws IOException, InterruptedException {
+        byte[] header = fetchRangeBytes(
+                uri,
+                entry.localHeaderOffset(),
+                entry.localHeaderOffset() + ZIP_HEADER_PROBE_BYTES - 1
+        );
+
+        if (unsignedInt(header, 0) != ZIP_LOCAL_FILE_HEADER_SIGNATURE) {
+            throw new IOException("Cabecalho local invalido no ZIP da ANS: " + entry.name());
+        }
+
+        int fileNameLength = unsignedShort(header, 26);
+        int extraLength = unsignedShort(header, 28);
+        long dataStart = entry.localHeaderOffset() + 30L + fileNameLength + extraLength;
+        long dataEnd = dataStart + entry.compressedSize() - 1;
+        InputStream compressedStream = fetchRangeStream(uri, dataStart, dataEnd);
+        InputStream csvStream = switch (entry.method()) {
+            case 0 -> compressedStream;
+            case 8 -> new InflaterInputStream(compressedStream, new Inflater(true));
+            default -> throw new IOException("Metodo de compressao nao suportado no ZIP da ANS: " + entry.method());
+        };
 
         return new BufferedReader(new InputStreamReader(csvStream, ANS_FILE_CHARSET));
     }
 
-    private InputStream openFirstZipEntry(InputStream body) throws IOException {
-        ZipInputStream zipInputStream = new ZipInputStream(body);
-        ZipEntry entry;
+    private long fetchContentLength(URI uri) throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder(uri)
+                .header("Range", "bytes=0-0")
+                .GET()
+                .build();
+        HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
 
-        while ((entry = zipInputStream.getNextEntry()) != null) {
-            if (!entry.isDirectory()) {
-                return zipInputStream;
+        if (response.statusCode() == 206) {
+            String contentRange = response.headers()
+                    .firstValue("Content-Range")
+                    .orElseThrow(() -> new IOException("ANS nao retornou Content-Range."));
+            int slashIndex = contentRange.lastIndexOf('/');
+
+            if (slashIndex >= 0) {
+                return Long.parseLong(contentRange.substring(slashIndex + 1));
             }
         }
 
-        throw new IOException("ZIP da ANS nao contem arquivo para importacao.");
+        return response.headers()
+                .firstValueAsLong("Content-Length")
+                .orElseThrow(() -> new IOException("ANS nao retornou tamanho do arquivo."));
+    }
+
+    private byte[] fetchRangeBytes(
+            URI uri,
+            long start,
+            long end
+    ) throws IOException, InterruptedException {
+        try (InputStream inputStream = fetchRangeStream(uri, start, end)) {
+            return inputStream.readAllBytes();
+        }
+    }
+
+    private InputStream fetchRangeStream(
+            URI uri,
+            long start,
+            long end
+    ) throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder(uri)
+                .header("Range", "bytes=" + start + "-" + end)
+                .GET()
+                .build();
+        HttpResponse<InputStream> response = httpClient.send(
+                request,
+                HttpResponse.BodyHandlers.ofInputStream()
+        );
+
+        if (response.statusCode() != 206) {
+            throw new IOException("ANS nao aceitou leitura parcial. HTTP " + response.statusCode());
+        }
+
+        return response.body();
+    }
+
+    private List<RemoteZipEntry> parseCentralDirectory(byte[] centralDirectory) throws IOException {
+        List<RemoteZipEntry> entries = new ArrayList<>();
+        int offset = 0;
+
+        while (offset + 46 <= centralDirectory.length) {
+            if (unsignedInt(centralDirectory, offset) != ZIP_CENTRAL_DIRECTORY_SIGNATURE) {
+                break;
+            }
+
+            int method = unsignedShort(centralDirectory, offset + 10);
+            long compressedSize = unsignedInt(centralDirectory, offset + 20);
+            long localHeaderOffset = unsignedInt(centralDirectory, offset + 42);
+            int fileNameLength = unsignedShort(centralDirectory, offset + 28);
+            int extraLength = unsignedShort(centralDirectory, offset + 30);
+            int commentLength = unsignedShort(centralDirectory, offset + 32);
+
+            if (offset + 46 + fileNameLength > centralDirectory.length) {
+                throw new IOException("Diretorio central do ZIP da ANS esta incompleto.");
+            }
+
+            String name = new String(
+                    centralDirectory,
+                    offset + 46,
+                    fileNameLength,
+                    StandardCharsets.UTF_8
+            );
+            entries.add(new RemoteZipEntry(name, method, compressedSize, localHeaderOffset));
+            offset += 46 + fileNameLength + extraLength + commentLength;
+        }
+
+        return entries;
+    }
+
+    private boolean shouldProcessAnsEntry(String entryName, Set<String> targetUfs) {
+        String normalizedName = entryName.toUpperCase(Locale.ROOT);
+
+        if (!normalizedName.endsWith(".CSV")) {
+            return false;
+        }
+
+        if (targetUfs.isEmpty()) {
+            return true;
+        }
+
+        return targetUfs.stream().anyMatch(uf -> normalizedName.endsWith("_" + uf + ".CSV"));
     }
 
     private boolean isImportableHospital(CnesEstablishment establishment) {
@@ -650,6 +839,28 @@ public class OfficialDataImportService {
         return value != null && value.startsWith("\uFEFF") ? value.substring(1) : value;
     }
 
+    private static int lastIndexOfSignature(byte[] bytes, int signature) {
+        for (int index = bytes.length - 4; index >= 0; index--) {
+            if (unsignedInt(bytes, index) == signature) {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private static int unsignedShort(byte[] bytes, int offset) {
+        return (bytes[offset] & 0xff)
+                | ((bytes[offset + 1] & 0xff) << 8);
+    }
+
+    private static long unsignedInt(byte[] bytes, int offset) {
+        return ((long) bytes[offset] & 0xff)
+                | (((long) bytes[offset + 1] & 0xff) << 8)
+                | (((long) bytes[offset + 2] & 0xff) << 16)
+                | (((long) bytes[offset + 3] & 0xff) << 24);
+    }
+
     private static Map<String, Integer> indexColumns(List<String> headerColumns) {
         Map<String, Integer> columns = new LinkedHashMap<>();
 
@@ -710,6 +921,31 @@ public class OfficialDataImportService {
     }
 
     private record Municipality(String name, String uf, int ufCode) {
+    }
+
+    private record RemoteZipEntry(
+            String name,
+            int method,
+            long compressedSize,
+            long localHeaderOffset
+    ) {
+    }
+
+    private static class AnsImportCounters {
+        private final int scanLimit;
+        private final Set<String> linkedPairs = new HashSet<>();
+        private int scannedRows;
+        private int importedPlans;
+        private int linkedPlans;
+        private int skippedRows;
+
+        private AnsImportCounters(int scanLimit) {
+            this.scanLimit = scanLimit;
+        }
+
+        private boolean reachedLimit() {
+            return scannedRows >= scanLimit;
+        }
     }
 
     private record CnesResponse(List<CnesEstablishment> estabelecimentos) {
