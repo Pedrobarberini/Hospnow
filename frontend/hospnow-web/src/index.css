@@ -254,7 +254,33 @@ select:disabled {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(340px, 0.9fr);
   gap: 20px;
-  align-items: start;
+  align-items: stretch;
+}
+
+.hospital-results-panel {
+  min-height: 0;
+  max-height: calc(100vh - 112px);
+  overflow-y: auto;
+  padding-right: 8px;
+  scrollbar-color: rgba(227, 6, 19, 0.42) transparent;
+  scrollbar-width: thin;
+}
+
+.hospital-results-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.hospital-results-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.hospital-results-panel::-webkit-scrollbar-thumb {
+  background: rgba(227, 6, 19, 0.36);
+  border-radius: 999px;
+}
+
+.hospital-results-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(227, 6, 19, 0.56);
 }
 
 .hospital-list-toolbar {
@@ -438,8 +464,11 @@ select:disabled {
 .map-view {
   position: sticky;
   top: 18px;
+  display: flex;
+  height: calc(100vh - 36px);
   overflow: hidden;
-  min-height: 520px;
+  min-height: 560px;
+  flex-direction: column;
   background: #ffffff;
   border: 1px solid var(--color-line);
   border-radius: 8px;
@@ -554,7 +583,8 @@ select:disabled {
 }
 
 .map-view__canvas {
-  height: 452px;
+  min-height: 360px;
+  flex: 1;
 }
 
 .map-view__canvas .leaflet-container {
@@ -618,6 +648,13 @@ select:disabled {
 
   .home__results {
     grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .hospital-results-panel {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
   }
 
   .hospital-list-toolbar {
@@ -631,7 +668,13 @@ select:disabled {
 
   .map-view {
     position: static;
+    height: auto;
     order: -1;
+  }
+
+  .map-view__canvas {
+    height: 420px;
+    flex: none;
   }
 
   .map-view__header,

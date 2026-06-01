@@ -304,21 +304,26 @@ export function Home() {
 
         {isLoading ? (
           <div className="home__results">
-            <div className="hospital-grid">
-              {[1, 2, 3].map((item) => (
-                <div className="hospital-card hospital-card--loading" key={item}>
-                  <span />
-                  <strong />
-                  <p />
-                  <p />
-                </div>
-              ))}
+            <div className="hospital-results-panel">
+              <div className="hospital-grid">
+                {[1, 2, 3].map((item) => (
+                  <div
+                    className="hospital-card hospital-card--loading"
+                    key={item}
+                  >
+                    <span />
+                    <strong />
+                    <p />
+                    <p />
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="map-view map-view--loading" />
           </div>
         ) : hospitals.length > 0 ? (
           <div className="home__results">
-            <div>
+            <div className="hospital-results-panel">
               <div className="hospital-list-toolbar">
                 <div>
                   <strong>
