@@ -1,0 +1,78 @@
+name: Refresh official health data
+
+on:
+  workflow_dispatch:
+    inputs:
+      cnes_limit:
+        description: "Hospitals to import per city"
+        required: true
+        default: "40"
+      run_ans:
+        description: "Also import ANS plan links"
+        required: true
+        type: boolean
+        default: false
+      ans_max_rows:
+        description: "Maximum ANS rows to scan"
+        required: true
+        default: "50000"
+  schedule:
+    - cron: "0 6 * * 1"
+    - cron: "0 7 1 * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: official-data-import
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    env:
+      API_BASE_URL: ${{ vars.HOSPNOW_API_URL || 'https://hospnow.onrender.com' }}
+      IMPORT_KEY: ${{ secrets.ADMIN_IMPORT_KEY }}
+      CNES_LIMIT: ${{ inputs.cnes_limit || '40' }}
+      ANS_MAX_ROWS: ${{ inputs.ans_max_rows || '50000' }}
+      RUN_ANS: ${{ github.event.schedule == '0 7 1 * *' || inputs.run_ans == true }}
+    steps:
+      - name: Validate configuration
+        run: |
+          if [ -z "$IMPORT_KEY" ]; then
+            echo "ADMIN_IMPORT_KEY secret is required."
+            exit 1
+          fi
+
+      - name: Wake backend
+        run: |
+          curl --retry 3 --retry-all-errors --max-time 120 --fail --silent --show-error \
+            "$API_BASE_URL/"
+
+      - name: Import CNES hospitals
+        run: |
+          cities=(
+            355280
+            355030
+            353440
+            351500
+            351300
+            351060
+          )
+
+          for city in "${cities[@]}"; do
+            echo "Importing CNES hospitals for city $city"
+            curl --retry 3 --retry-all-errors --max-time 240 --fail --silent --show-error \
+              --request POST \
+              --header "X-Import-Key: $IMPORT_KEY" \
+              "$API_BASE_URL/admin/imports/cnes?codigoMunicipio=$city&limit=$CNES_LIMIT"
+            echo
+          done
+
+      - name: Import ANS plan links
+        if: env.RUN_ANS == 'true'
+        run: |
+          curl --retry 2 --retry-all-errors --max-time 600 --fail --silent --show-error \
+            --request POST \
+            --header "X-Import-Key: $IMPORT_KEY" \
+            "$API_BASE_URL/admin/imports/ans?maxRows=$ANS_MAX_ROWS"

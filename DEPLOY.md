@@ -83,6 +83,22 @@ curl -X POST "https://hospnow.onrender.com/admin/imports/ans?maxRows=250000" \
 
 A importação da ANS usa uma base grande; em plano gratuito, prefira limites menores e rode só quando precisar atualizar a demonstração.
 
+## Atualização automática via GitHub Actions
+
+O arquivo `.github/workflows/official-data-import.yml` chama as rotas de importação sem expor a chave no repositório.
+
+No GitHub, configure:
+
+1. `Settings > Secrets and variables > Actions > Secrets`
+2. Crie a secret `ADMIN_IMPORT_KEY` com a mesma chave cadastrada no Render.
+3. Opcionalmente, em `Variables`, crie `HOSPNOW_API_URL` se a URL do backend mudar.
+
+Depois disso, o workflow:
+
+- Roda toda segunda-feira para atualizar hospitais do CNES.
+- Roda no primeiro dia de cada mês para tentar vincular planos da ANS.
+- Pode ser acionado manualmente em `Actions > Refresh official health data > Run workflow`.
+
 ## Frontend no GitHub Pages
 
 O workflow `.github/workflows/frontend-pages.yml` publica `frontend/hospnow-web/dist` no GitHub Pages.

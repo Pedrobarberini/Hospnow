@@ -236,6 +236,19 @@ curl -X POST "https://hospnow.onrender.com/admin/imports/ans?maxRows=250000" \
 
 A base da ANS é grande, então essa importação deve ser usada com limite de linhas e pode demorar em ambientes gratuitos.
 
+## Atualização Automática
+
+O workflow `.github/workflows/official-data-import.yml` atualiza os dados oficiais automaticamente:
+
+- Toda segunda-feira, importa hospitais do CNES para Taboão da Serra, São Paulo, Osasco, Embu das Artes, Cotia e Carapicuíba.
+- No primeiro dia de cada mês, também tenta vincular planos reais da ANS.
+- Também pode ser executado manualmente em `Actions > Refresh official health data > Run workflow`.
+
+Para funcionar, cadastre no GitHub:
+
+- Secret `ADMIN_IMPORT_KEY`: a mesma chave configurada no Render.
+- Variable opcional `HOSPNOW_API_URL`: use apenas se a API mudar de URL. Se não existir, o workflow usa `https://hospnow.onrender.com`.
+
 ## Como Rodar Localmente
 
 ### Backend
