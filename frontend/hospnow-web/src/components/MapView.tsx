@@ -129,6 +129,11 @@ function HospitalPopup({ hospital }: { hospital: Hospital }) {
   const planNames = hospital.planos.map((plan) => plan.nome);
   const specialtyNames =
     hospital.especialidades?.map((specialty) => specialty.nome) ?? [];
+  const officialBadges = [
+    hospital.codigoCnes ? `CNES ${hospital.codigoCnes}` : undefined,
+    hospital.tipoUnidade,
+    hospital.fonteDados ? `Fonte ${hospital.fonteDados}` : undefined,
+  ].filter(Boolean) as string[];
 
   return (
     <div className="hospital-popup">
@@ -141,6 +146,13 @@ function HospitalPopup({ hospital }: { hospital: Hospital }) {
         <span>Telefone</span>
         {hospital.telefone || "Não informado"}
       </p>
+      {officialBadges.length > 0 && (
+        <div className="hospital-popup__official" aria-label="Dados oficiais">
+          {officialBadges.map((badge) => (
+            <small key={badge}>{badge}</small>
+          ))}
+        </div>
+      )}
       <div className="hospital-popup__tags">
         {planNames.map((planName) => (
           <small key={planName}>{planName}</small>

@@ -404,6 +404,23 @@ select:disabled {
   text-transform: uppercase;
 }
 
+.hospital-card__official {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -8px 0 18px;
+}
+
+.hospital-card__official span {
+  padding: 6px 9px;
+  color: var(--color-navy-soft);
+  background: #f7fafc;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
 .hospital-card__plans {
   display: flex;
   flex-wrap: wrap;
@@ -694,11 +711,27 @@ select:disabled {
   gap: 5px;
 }
 
+.hospital-popup__official {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
 .hospital-popup__tags small {
   padding: 4px 7px;
   color: #85111c;
   background: #fff5f6;
   border: 1px solid #f4ccd1;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.hospital-popup__official small {
+  padding: 4px 7px;
+  color: var(--color-navy-soft);
+  background: #f7fafc;
+  border: 1px solid var(--color-line);
   border-radius: 999px;
   font-size: 0.68rem;
   font-weight: 800;

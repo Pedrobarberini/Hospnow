@@ -2,6 +2,7 @@ package com.hospnow.entity;
 
 import jakarta.persistence.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 
@@ -17,6 +18,17 @@ public class Hospital {
     private String telefone;
     private Double latitude;
     private Double longitude;
+    private String codigoCnes;
+    private String cnpj;
+    private String cep;
+    private String bairro;
+    private String cidade;
+    private String uf;
+    private Integer codigoMunicipio;
+    private Integer codigoTipoUnidade;
+    private String tipoUnidade;
+    private String fonteDados;
+    private LocalDate dataAtualizacaoFonte;
 
 
     @ManyToMany
@@ -82,6 +94,94 @@ public class Hospital {
 
     public void setLongitude(Double longitude){
         this.longitude = longitude;
+    }
+
+    public String getCodigoCnes(){
+        return codigoCnes;
+    }
+
+    public void setCodigoCnes(String codigoCnes){
+        this.codigoCnes = codigoCnes;
+    }
+
+    public String getCnpj(){
+        return cnpj;
+    }
+
+    public void setCnpj(String cnpj){
+        this.cnpj = cnpj;
+    }
+
+    public String getCep(){
+        return cep;
+    }
+
+    public void setCep(String cep){
+        this.cep = cep;
+    }
+
+    public String getBairro(){
+        return bairro;
+    }
+
+    public void setBairro(String bairro){
+        this.bairro = bairro;
+    }
+
+    public String getCidade(){
+        return cidade;
+    }
+
+    public void setCidade(String cidade){
+        this.cidade = cidade;
+    }
+
+    public String getUf(){
+        return uf;
+    }
+
+    public void setUf(String uf){
+        this.uf = uf;
+    }
+
+    public Integer getCodigoMunicipio(){
+        return codigoMunicipio;
+    }
+
+    public void setCodigoMunicipio(Integer codigoMunicipio){
+        this.codigoMunicipio = codigoMunicipio;
+    }
+
+    public Integer getCodigoTipoUnidade(){
+        return codigoTipoUnidade;
+    }
+
+    public void setCodigoTipoUnidade(Integer codigoTipoUnidade){
+        this.codigoTipoUnidade = codigoTipoUnidade;
+    }
+
+    public String getTipoUnidade(){
+        return tipoUnidade;
+    }
+
+    public void setTipoUnidade(String tipoUnidade){
+        this.tipoUnidade = tipoUnidade;
+    }
+
+    public String getFonteDados(){
+        return fonteDados;
+    }
+
+    public void setFonteDados(String fonteDados){
+        this.fonteDados = fonteDados;
+    }
+
+    public LocalDate getDataAtualizacaoFonte(){
+        return dataAtualizacaoFonte;
+    }
+
+    public void setDataAtualizacaoFonte(LocalDate dataAtualizacaoFonte){
+        this.dataAtualizacaoFonte = dataAtualizacaoFonte;
     }
 
     public List<HealthPlan> getPlanos(){

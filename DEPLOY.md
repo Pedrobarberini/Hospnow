@@ -16,6 +16,7 @@ Não publique credenciais reais no GitHub. O backend lê as credenciais por vari
 - `DATABASE_USERNAME`
 - `DATABASE_PASSWORD`
 - `APP_ALLOWED_ORIGINS`
+- `ADMIN_IMPORT_KEY`
 
 Para desenvolvimento local, copie `backend/hospnow-api/src/main/resources/application-local.example.properties` para `application-local.properties` e preencha seus dados locais. Esse arquivo está no `.gitignore`.
 
@@ -56,12 +57,31 @@ Instance Type: Free
 - `DATABASE_PASSWORD`: senha do Neon
 - `SPRING_PROFILES_ACTIVE`: `prod`
 - `APP_ALLOWED_ORIGINS`: `https://pedrobarberini.github.io`
+- `ADMIN_IMPORT_KEY`: uma chave forte para proteger `POST /admin/imports/*`
 
 Depois do deploy, copie a URL pública do backend. Exemplo:
 
 ```txt
 https://hospnow-api.onrender.com
 ```
+
+## Importação oficial CNES e ANS
+
+Depois que o backend estiver no ar e o `ADMIN_IMPORT_KEY` estiver configurado, você pode importar hospitais oficiais por município:
+
+```bash
+curl -X POST "https://hospnow.onrender.com/admin/imports/cnes?codigoMunicipio=355280&limit=40" \
+  -H "X-Import-Key: sua-chave"
+```
+
+Para vincular planos reais da ANS aos hospitais importados pelo CNES:
+
+```bash
+curl -X POST "https://hospnow.onrender.com/admin/imports/ans?maxRows=250000" \
+  -H "X-Import-Key: sua-chave"
+```
+
+A importação da ANS usa uma base grande; em plano gratuito, prefira limites menores e rode só quando precisar atualizar a demonstração.
 
 ## Frontend no GitHub Pages
 

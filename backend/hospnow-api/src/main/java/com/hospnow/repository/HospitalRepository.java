@@ -16,6 +16,8 @@ public interface HospitalRepository extends JpaRepository<Hospital, Long> {
 
     Optional<Hospital> findByNomeIgnoreCase(String nome);
 
+    Optional<Hospital> findByCodigoCnes(String codigoCnes);
+
     boolean existsByNomeIgnoreCase(String nome);
 
     @Query("""

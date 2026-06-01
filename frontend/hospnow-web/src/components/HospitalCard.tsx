@@ -18,6 +18,13 @@ export function HospitalCard({
   const specialtyNames =
     hospital.especialidades?.map((specialty) => specialty.nome) ?? [];
   const hospitalName = hospital.nome || "Hospital sem nome cadastrado";
+  const cityLabel = [hospital.cidade, hospital.uf].filter(Boolean).join(" - ");
+  const officialBadges = [
+    hospital.codigoCnes ? `CNES ${hospital.codigoCnes}` : undefined,
+    hospital.tipoUnidade,
+    cityLabel || undefined,
+    hospital.fonteDados ? `Fonte ${hospital.fonteDados}` : undefined,
+  ].filter(Boolean) as string[];
 
   function handleKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (!onSelect) {
@@ -67,6 +74,14 @@ export function HospitalCard({
           </p>
         )}
       </div>
+
+      {officialBadges.length > 0 && (
+        <div className="hospital-card__official" aria-label="Dados oficiais">
+          {officialBadges.map((badge) => (
+            <span key={badge}>{badge}</span>
+          ))}
+        </div>
+      )}
 
       <div className="hospital-card__plans" aria-label="Planos aceitos">
         {planNames.length > 0 ? (

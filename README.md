@@ -23,6 +23,8 @@ Na aplicação, o usuário pode:
 - Digitar um endereço manualmente.
 - Comparar a própria localização com a localização dos hospitais.
 - Ordenar os hospitais mais próximos.
+- Importar hospitais oficiais do CNES/DATASUS.
+- Vincular planos e operadoras usando a base pública da ANS.
 
 ## Tecnologias Utilizadas
 
@@ -55,6 +57,14 @@ React Leaflet foi utilizado para integrar o Leaflet ao ecossistema React. Isso p
 **OpenStreetMap**
 
 OpenStreetMap foi utilizado como fonte dos mapas exibidos pelo Leaflet. Ele permite que o projeto tenha mapas funcionais sem depender de uma solução paga.
+
+**CNES/DATASUS**
+
+CNES/DATASUS foi utilizado como fonte oficial de estabelecimentos de saúde. O backend possui uma importação administrativa que consulta a API pública de dados abertos do Ministério da Saúde e grava hospitais com CNES, CNPJ, endereço, telefone, coordenadas, cidade, UF e tipo de unidade.
+
+**ANS Dados Abertos**
+
+A base pública de Produtos e Prestadores Hospitalares da ANS foi utilizada para enriquecer a simulação com vínculos reais entre prestadores hospitalares, operadoras e produtos de planos de saúde. A importação lê o arquivo oficial de forma incremental para evitar carregar a base inteira em memória.
 
 ### Backend
 
@@ -125,6 +135,7 @@ Neon foi utilizado como banco PostgreSQL em nuvem. Ele permite que o backend pub
 - Cálculo de distância.
 - Ordenação por hospitais mais próximos.
 - Dados iniciais para simulação.
+- Importação protegida de dados oficiais CNES e ANS.
 - Deploy completo com frontend, backend e banco em serviços separados.
 
 ## Arquitetura do Projeto
@@ -160,7 +171,11 @@ GET  /specialties
 POST /specialties
 GET  /users
 POST /users
+POST /admin/imports/cnes?codigoMunicipio={codigoMunicipio}&limit={limit}
+POST /admin/imports/ans?maxRows={maxRows}
 ```
+
+As rotas de importação administrativa exigem o header `X-Import-Key` e só funcionam quando a variável `ADMIN_IMPORT_KEY` está configurada no ambiente.
 
 ## Modelo de Dados
 
@@ -187,9 +202,39 @@ DATABASE_USERNAME
 DATABASE_PASSWORD
 SPRING_PROFILES_ACTIVE
 APP_ALLOWED_ORIGINS
+ADMIN_IMPORT_KEY
+OFFICIAL_DATA_CNES_BASE_URL
+OFFICIAL_DATA_ANS_PRODUCTS_URL
 ```
 
 No ambiente local, credenciais do banco devem ficar em `application-local.properties`, arquivo ignorado pelo Git.
+
+## Importação de Dados Oficiais
+
+Para importar hospitais reais, primeiro configure `ADMIN_IMPORT_KEY` no ambiente do backend. Depois chame a rota administrativa com o código IBGE do município:
+
+```bash
+curl -X POST "https://hospnow.onrender.com/admin/imports/cnes?codigoMunicipio=355280&limit=40" \
+  -H "X-Import-Key: sua-chave"
+```
+
+Alguns códigos úteis para a região de São Paulo:
+
+- `355030`: São Paulo
+- `355280`: Taboão da Serra
+- `353440`: Osasco
+- `351500`: Embu das Artes
+- `351300`: Cotia
+- `351060`: Carapicuíba
+
+Depois de importar os hospitais, a rota abaixo tenta vincular planos reais da ANS aos hospitais cadastrados pelo código CNES:
+
+```bash
+curl -X POST "https://hospnow.onrender.com/admin/imports/ans?maxRows=250000" \
+  -H "X-Import-Key: sua-chave"
+```
+
+A base da ANS é grande, então essa importação deve ser usada com limite de linhas e pode demorar em ambientes gratuitos.
 
 ## Como Rodar Localmente
 
@@ -238,7 +283,7 @@ Mais detalhes estão no arquivo `DEPLOY.md`.
 - Tela de cadastro integrada ao backend.
 - Favoritar hospitais.
 - Página de detalhes do hospital.
-- Integração com dados reais de hospitais.
+- Agendamento automático de atualização das bases CNES e ANS.
 - Filtros avançados por cidade, distância e pronto atendimento.
 - Testes automatizados para services e controllers.
 - Pipeline de CI para validação do backend.

@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface HealthPlanRepository extends JpaRepository<HealthPlan, Long> {
 
     Optional<HealthPlan> findByNomeIgnoreCase(String nome);
+
+    Optional<HealthPlan> findByCodigoAnsPlano(String codigoAnsPlano);
 }
