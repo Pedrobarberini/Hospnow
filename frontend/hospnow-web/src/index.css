@@ -64,8 +64,8 @@ select:disabled {
   padding: 56px clamp(20px, 5vw, 72px) 40px;
   color: #ffffff;
   background:
-    linear-gradient(135deg, rgba(7, 28, 54, 0.96), rgba(115, 0, 8, 0.88)),
-    url("./assets/hero.png") center/cover;
+    linear-gradient(135deg, rgba(7, 28, 54, 0.9), rgba(115, 0, 8, 0.82)),
+    url("./assets/hero-hospnow.png") 58% center/cover;
 }
 
 .home__hero::after {
@@ -75,7 +75,7 @@ select:disabled {
   bottom: -70px;
   width: min(34vw, 390px);
   aspect-ratio: 1;
-  background: url("./assets/brand-mark.svg") center/contain no-repeat;
+  background: url("./assets/logo-hospnow.png") center/contain no-repeat;
   content: "";
   opacity: 0.11;
   pointer-events: none;
@@ -98,7 +98,8 @@ select:disabled {
 .home__brand img {
   width: 58px;
   height: 58px;
-  border-radius: 16px;
+  object-fit: cover;
+  border-radius: 14px;
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
 }
 
