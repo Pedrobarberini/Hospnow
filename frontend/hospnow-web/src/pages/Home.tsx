@@ -7,6 +7,7 @@ import { getHospitals, searchHospitals } from "../services/hospitalService";
 import { getHealthPlans } from "../services/planService";
 import { getSpecialties } from "../services/specialtyService";
 import type { HealthPlan, Hospital, Specialty } from "../types/Hospital";
+import brandMarkUrl from "../assets/brand-mark.svg";
 
 export function Home() {
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
@@ -238,7 +239,14 @@ export function Home() {
     <main className="home">
       <section className="home__hero">
         <div className="home__hero-content">
-          <span className="home__eyebrow">HospNow</span>
+          <div className="home__brand" aria-label="HospNow">
+            <img src={brandMarkUrl} alt="" />
+            <div>
+              <strong>HospNow</strong>
+              <span>Cuidar hoje, transformar amanhã.</span>
+            </div>
+          </div>
+          <span className="home__eyebrow">Rede Prime de cuidado</span>
           <h1>Encontre hospitais que aceitam seu plano de saúde.</h1>
           <p>
             Consulte hospitais e clínicas compatíveis com seu convênio em uma

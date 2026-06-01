@@ -9,9 +9,6 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import type { Hospital } from "../types/Hospital";
-import markerIcon2xUrl from "leaflet/dist/images/marker-icon-2x.png";
-import markerIconUrl from "leaflet/dist/images/marker-icon.png";
-import markerShadowUrl from "leaflet/dist/images/marker-shadow.png";
 import "leaflet/dist/leaflet.css";
 
 interface MapViewProps {
@@ -33,14 +30,12 @@ export interface UserLocation {
 
 const defaultCenter: [number, number] = [-23.55, -46.63];
 
-const markerIcon = L.icon({
-  iconUrl: markerIconUrl,
-  iconRetinaUrl: markerIcon2xUrl,
-  shadowUrl: markerShadowUrl,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
+const markerIcon = L.divIcon({
+  className: "hospital-marker",
+  html: '<span class="hospital-marker__pin"></span>',
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
+  popupAnchor: [0, -30],
 });
 
 function isValidCoordinate(hospital: Hospital) {
@@ -165,8 +160,8 @@ export function MapView({
             <CircleMarker
               center={[userLocation.latitude, userLocation.longitude]}
               pathOptions={{
-                color: "#0d5960",
-                fillColor: "#2a8c8a",
+                color: "#071c36",
+                fillColor: "#e30613",
                 fillOpacity: 0.88,
               }}
               radius={9}
