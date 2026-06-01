@@ -605,6 +605,7 @@ select:disabled {
 .map-view__canvas {
   min-height: 360px;
   flex: 1;
+  scroll-margin-top: 12px;
 }
 
 .map-view__canvas .leaflet-container {
@@ -753,7 +754,9 @@ select:disabled {
   }
 
   .map-view__canvas {
-    height: 420px;
+    min-height: 340px;
+    height: min(64vh, 430px);
+    height: min(64svh, 430px);
     flex: none;
   }
 

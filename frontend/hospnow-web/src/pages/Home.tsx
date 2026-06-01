@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { HospitalCard } from "../components/HospitalCard";
 import { MapView, type UserLocation } from "../components/MapView";
 import { PlanFilter } from "../components/PlanFilter";
@@ -9,7 +9,38 @@ import { getSpecialties } from "../services/specialtyService";
 import type { HealthPlan, Hospital, Specialty } from "../types/Hospital";
 import logoUrl from "../assets/logo-hospnow.png";
 
+function getDistanceInKm(hospital: Hospital, userLocation: UserLocation | null) {
+  if (
+    !userLocation ||
+    !Number.isFinite(hospital.latitude) ||
+    !Number.isFinite(hospital.longitude)
+  ) {
+    return undefined;
+  }
+
+  const earthRadiusInKm = 6371;
+  const latitudeDelta =
+    ((hospital.latitude - userLocation.latitude) * Math.PI) / 180;
+  const longitudeDelta =
+    ((hospital.longitude - userLocation.longitude) * Math.PI) / 180;
+  const userLatitude = (userLocation.latitude * Math.PI) / 180;
+  const hospitalLatitude = (hospital.latitude * Math.PI) / 180;
+
+  const distanceFactor =
+    Math.sin(latitudeDelta / 2) ** 2 +
+    Math.cos(userLatitude) *
+      Math.cos(hospitalLatitude) *
+      Math.sin(longitudeDelta / 2) ** 2;
+
+  return (
+    earthRadiusInKm *
+    2 *
+    Math.atan2(Math.sqrt(distanceFactor), Math.sqrt(1 - distanceFactor))
+  );
+}
+
 export function Home() {
+  const mapViewRef = useRef<HTMLElement | null>(null);
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [plans, setPlans] = useState<HealthPlan[]>([]);
   const [specialties, setSpecialties] = useState<Specialty[]>([]);
@@ -96,36 +127,6 @@ export function Home() {
     await loadFilteredHospitals("", "");
   }
 
-  function getDistanceInKm(hospital: Hospital) {
-    if (
-      !userLocation ||
-      !Number.isFinite(hospital.latitude) ||
-      !Number.isFinite(hospital.longitude)
-    ) {
-      return undefined;
-    }
-
-    const earthRadiusInKm = 6371;
-    const latitudeDelta =
-      ((hospital.latitude - userLocation.latitude) * Math.PI) / 180;
-    const longitudeDelta =
-      ((hospital.longitude - userLocation.longitude) * Math.PI) / 180;
-    const userLatitude = (userLocation.latitude * Math.PI) / 180;
-    const hospitalLatitude = (hospital.latitude * Math.PI) / 180;
-
-    const distanceFactor =
-      Math.sin(latitudeDelta / 2) ** 2 +
-      Math.cos(userLatitude) *
-        Math.cos(hospitalLatitude) *
-        Math.sin(longitudeDelta / 2) ** 2;
-
-    return (
-      earthRadiusInKm *
-      2 *
-      Math.atan2(Math.sqrt(distanceFactor), Math.sqrt(1 - distanceFactor))
-    );
-  }
-
   const sortedHospitals = useMemo(() => {
     if (!sortByDistance || !userLocation) {
       return hospitals;
@@ -133,13 +134,35 @@ export function Home() {
 
     return [...hospitals].sort((firstHospital, secondHospital) => {
       const firstDistance =
-        getDistanceInKm(firstHospital) ?? Number.POSITIVE_INFINITY;
+        getDistanceInKm(firstHospital, userLocation) ??
+        Number.POSITIVE_INFINITY;
       const secondDistance =
-        getDistanceInKm(secondHospital) ?? Number.POSITIVE_INFINITY;
+        getDistanceInKm(secondHospital, userLocation) ??
+        Number.POSITIVE_INFINITY;
 
       return firstDistance - secondDistance;
     });
   }, [hospitals, sortByDistance, userLocation]);
+
+  function handleHospitalSelect(hospital: Hospital) {
+    setSelectedHospitalId(hospital.id);
+
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 920px)").matches
+    ) {
+      window.setTimeout(() => {
+        const mapCanvas = mapViewRef.current?.querySelector<HTMLElement>(
+          ".map-view__canvas"
+        );
+
+        (mapCanvas ?? mapViewRef.current)?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 80);
+    }
+  }
 
   function handleUseLocation() {
     if (!navigator.geolocation) {
@@ -355,11 +378,11 @@ export function Home() {
               <div className="hospital-grid">
                 {sortedHospitals.map((hospital) => (
                   <HospitalCard
-                    distanceInKm={getDistanceInKm(hospital)}
+                    distanceInKm={getDistanceInKm(hospital, userLocation)}
                     isSelected={hospital.id === selectedHospitalId}
                     key={hospital.id}
                     hospital={hospital}
-                    onSelect={() => setSelectedHospitalId(hospital.id)}
+                    onSelect={handleHospitalSelect}
                   />
                 ))}
               </div>
@@ -373,6 +396,7 @@ export function Home() {
               onAddressChange={setAddressInput}
               onAddressSubmit={handleAddressSubmit}
               onUseLocation={handleUseLocation}
+              containerRef={mapViewRef}
               selectedHospitalId={selectedHospitalId}
               userLocation={userLocation}
             />

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type Ref } from "react";
 import {
   CircleMarker,
   MapContainer,
@@ -13,6 +13,7 @@ import "leaflet/dist/leaflet.css";
 
 interface MapViewProps {
   addressInput?: string;
+  containerRef?: Ref<HTMLElement>;
   hospitals: Hospital[];
   isSearchingAddress?: boolean;
   isLocating?: boolean;
@@ -97,9 +98,28 @@ function FocusSelectedHospital({ hospital }: { hospital?: Hospital }) {
       return;
     }
 
-    map.flyTo([hospital.latitude, hospital.longitude], 15, {
-      duration: 0.7,
-    });
+    const timeoutId = window.setTimeout(() => {
+      const selectedZoom = 16;
+      const hospitalPosition = L.latLng(hospital.latitude, hospital.longitude);
+      const isMobile = window.matchMedia("(max-width: 920px)").matches;
+      const popupOffset = isMobile ? Math.min(map.getSize().y * 0.16, 86) : 0;
+      const centeredPosition =
+        popupOffset > 0
+          ? map.unproject(
+              map
+                .project(hospitalPosition, selectedZoom)
+                .subtract([0, popupOffset]),
+              selectedZoom
+            )
+          : hospitalPosition;
+
+      map.invalidateSize();
+      map.flyTo(centeredPosition, selectedZoom, {
+        duration: 0.7,
+      });
+    }, 80);
+
+    return () => window.clearTimeout(timeoutId);
   }, [hospital, map]);
 
   return null;
@@ -151,7 +171,7 @@ function SelectedHospitalMarker({ hospital }: { hospital: Hospital }) {
       ref={markerRef}
       zIndexOffset={1000}
     >
-      <Popup>
+      <Popup autoPan={false}>
         <HospitalPopup hospital={hospital} />
       </Popup>
     </Marker>
@@ -160,6 +180,7 @@ function SelectedHospitalMarker({ hospital }: { hospital: Hospital }) {
 
 export function MapView({
   addressInput = "",
+  containerRef,
   hospitals,
   isSearchingAddress = false,
   isLocating = false,
@@ -182,7 +203,11 @@ export function MapView({
       : defaultCenter;
 
   return (
-    <section className="map-view" aria-label="Mapa de hospitais">
+    <section
+      className="map-view"
+      ref={containerRef}
+      aria-label="Mapa de hospitais"
+    >
       <div className="map-view__header">
         <div>
           <span className="home__eyebrow">Mapa</span>
