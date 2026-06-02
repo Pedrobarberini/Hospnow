@@ -27,7 +27,7 @@ export function HospitalCard({
       : undefined;
   const emptyPlanLabel =
     hospital.classificacaoAdministrativa === "Público"
-      ? "Publico"
+      ? "Público"
       : "Sem planos vinculados na base ANS";
   const officialBadges = [
     hospital.codigoCnes ? `CNES ${hospital.codigoCnes}` : undefined,
