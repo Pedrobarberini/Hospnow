@@ -1,22 +1,28 @@
 import type { HealthPlan } from "../types/Hospital";
-import { getPlanDisplayName } from "../utils/planDisplay";
+import { getPlanOperatorName } from "../utils/planDisplay";
 
 interface PlanFilterProps {
-  plans: HealthPlan[];
-  selectedPlan: string;
+  categories: string[];
   disabled?: boolean;
-  onChange: (planName: string) => void;
+  onCategoryChange: (categoryName: string) => void;
+  onOperatorChange: (operatorName: string) => void;
+  plans: HealthPlan[];
+  selectedCategory: string;
+  selectedOperator: string;
 }
 
 export function PlanFilter({
-  plans,
-  selectedPlan,
+  categories,
   disabled = false,
-  onChange,
+  onCategoryChange,
+  onOperatorChange,
+  plans,
+  selectedCategory,
+  selectedOperator,
 }: PlanFilterProps) {
   const planOptions = Array.from(
     plans.reduce((options, plan) => {
-      const displayName = getPlanDisplayName(plan);
+      const displayName = getPlanOperatorName(plan);
 
       if (!options.has(displayName)) {
         options.set(displayName, plan);
@@ -27,20 +33,38 @@ export function PlanFilter({
   ).sort(([first], [second]) => first.localeCompare(second, "pt-BR"));
 
   return (
-    <label className="plan-filter">
-      <span>Plano de saúde</span>
-      <select
-        value={selectedPlan}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        <option value="">Todos os planos</option>
-        {planOptions.map(([displayName]) => (
-          <option key={displayName} value={displayName}>
-            {displayName}
-          </option>
-        ))}
-      </select>
-    </label>
+    <>
+      <label className="plan-filter">
+        <span>Plano de saúde</span>
+        <select
+          value={selectedOperator}
+          disabled={disabled}
+          onChange={(event) => onOperatorChange(event.target.value)}
+        >
+          <option value="">Todos os planos</option>
+          {planOptions.map(([displayName]) => (
+            <option key={displayName} value={displayName}>
+              {displayName}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="plan-filter">
+        <span>Categoria do plano</span>
+        <select
+          value={selectedCategory}
+          disabled={disabled || categories.length === 0}
+          onChange={(event) => onCategoryChange(event.target.value)}
+        >
+          <option value="">Todas as categorias</option>
+          {categories.map((category) => (
+            <option key={category} value={category}>
+              {category}
+            </option>
+          ))}
+        </select>
+      </label>
+    </>
   );
 }

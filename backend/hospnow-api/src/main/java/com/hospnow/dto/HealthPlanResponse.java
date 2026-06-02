@@ -2,6 +2,7 @@ package com.hospnow.dto;
 
 import com.hospnow.entity.HealthPlan;
 
+import java.text.Normalizer;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -22,15 +23,23 @@ public record HealthPlanResponse(
             "^(.*)\\s+-\\s+Produto\\s+(\\d+)$",
             Pattern.CASE_INSENSITIVE
     );
+    private static final Pattern LEGACY_CATEGORY_PATTERN = Pattern.compile(
+            "^(.*)\\s+-\\s+(Categoria\\s+\\d{2}-\\d{2}|Intermedi[aá]rio|Categoria n[aã]o informada)$",
+            Pattern.CASE_INSENSITIVE
+    );
 
     public static HealthPlanResponse from(HealthPlan plan) {
-        String category = plan.getCategoriaProduto();
         String name = plan.getNome();
+        String category = normalizeCategoryName(plan.getCategoriaProduto());
         Matcher legacyProduct = name == null ? null : LEGACY_PRODUCT_PATTERN.matcher(name);
+        Matcher legacyCategory = name == null ? null : LEGACY_CATEGORY_PATTERN.matcher(name);
 
         if (legacyProduct != null && legacyProduct.matches()) {
             category = classifyProductCode(legacyProduct.group(2));
             name = legacyProduct.group(1).trim() + " - " + category;
+        } else if (legacyCategory != null && legacyCategory.matches()) {
+            category = normalizeCategoryName(legacyCategory.group(2));
+            name = legacyCategory.group(1).trim() + " - " + category;
         }
 
         return new HealthPlanResponse(
@@ -60,13 +69,68 @@ public record HealthPlanResponse(
 
         int suffix = Integer.parseInt(digitsOnly.substring(digitsOnly.length() - 2));
 
-        if (suffix >= 80 && suffix <= 88) {
-            return "Intermedi\u00e1rio";
+        if (suffix <= 19) {
+            return "Personal / Pleno";
         }
 
-        int start = suffix >= 89 ? 89 : (suffix / 10) * 10;
-        int end = suffix >= 89 ? 99 : start + 9;
+        if (suffix <= 39) {
+            return "Cl\u00e1ssico";
+        }
 
-        return "Categoria " + String.format(Locale.ROOT, "%02d-%02d", start, end);
+        if (suffix <= 59) {
+            return "Estilo";
+        }
+
+        if (suffix <= 74) {
+            return "Absoluto";
+        }
+
+        if (suffix <= 88) {
+            return "Superior";
+        }
+
+        return "Exclusivo / Master";
+    }
+
+    private static String normalizeCategoryName(String category) {
+        String normalizedCategory = Normalizer.normalize(category == null ? "" : category, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toUpperCase(Locale.ROOT)
+                .trim();
+
+        if (normalizedCategory.isBlank()) {
+            return null;
+        }
+
+        if (normalizedCategory.contains("PERSONAL") || normalizedCategory.contains("PLENO")) {
+            return "Personal / Pleno";
+        }
+
+        if (normalizedCategory.contains("CLASSICO")) {
+            return "Cl\u00e1ssico";
+        }
+
+        if (normalizedCategory.contains("ESTILO") || normalizedCategory.contains("INTERMEDIARIO")) {
+            return "Estilo";
+        }
+
+        if (normalizedCategory.contains("ABSOLUTO")) {
+            return "Absoluto";
+        }
+
+        if (normalizedCategory.contains("SUPERIOR")) {
+            return "Superior";
+        }
+
+        if (normalizedCategory.contains("EXCLUSIVO") || normalizedCategory.contains("MASTER")) {
+            return "Exclusivo / Master";
+        }
+
+        Matcher legacyCategory = Pattern.compile("CATEGORIA\\s+(\\d{2})-\\d{2}").matcher(normalizedCategory);
+        if (legacyCategory.find()) {
+            return classifyProductCode(legacyCategory.group(1));
+        }
+
+        return category.trim();
     }
 }

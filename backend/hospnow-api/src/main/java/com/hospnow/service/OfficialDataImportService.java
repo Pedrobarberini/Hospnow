@@ -322,15 +322,27 @@ public class OfficialDataImportService {
 
         int suffix = Integer.parseInt(normalizedPlanCode.substring(normalizedPlanCode.length() - 2));
 
-        if (suffix >= 80 && suffix <= 88) {
-            return new ProductCategory("80-88", "Intermediário");
+        if (suffix <= 19) {
+            return new ProductCategory("personal-pleno", "Personal / Pleno");
         }
 
-        int start = suffix >= 89 ? 89 : (suffix / 10) * 10;
-        int end = suffix >= 89 ? 99 : start + 9;
-        String range = String.format(Locale.ROOT, "%02d-%02d", start, end);
+        if (suffix <= 39) {
+            return new ProductCategory("classico", "Clássico");
+        }
 
-        return new ProductCategory(range, "Categoria " + range);
+        if (suffix <= 59) {
+            return new ProductCategory("estilo", "Estilo");
+        }
+
+        if (suffix <= 74) {
+            return new ProductCategory("absoluto", "Absoluto");
+        }
+
+        if (suffix <= 88) {
+            return new ProductCategory("superior", "Superior");
+        }
+
+        return new ProductCategory("exclusivo-master", "Exclusivo / Master");
     }
 
     private String buildGroupedAnsPlanCode(

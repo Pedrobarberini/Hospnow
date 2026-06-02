@@ -7,7 +7,11 @@ import { SpecialtyFilter } from "../components/SpecialtyFilter";
 import { getHospitals } from "../services/hospitalService";
 import { getSpecialties } from "../services/specialtyService";
 import type { HealthPlan, Hospital, Specialty } from "../types/Hospital";
-import { filterHospitals, getLinkedPlans } from "../utils/hospitalFilter";
+import {
+  filterHospitals,
+  getLinkedPlans,
+  getPlanCategoriesForOperator,
+} from "../utils/hospitalFilter";
 import logoUrl from "../assets/logo-hospnow.png";
 
 function getDistanceInKm(hospital: Hospital, userLocation: UserLocation | null) {
@@ -46,7 +50,8 @@ export function Home() {
   const [plans, setPlans] = useState<HealthPlan[]>([]);
   const [specialties, setSpecialties] = useState<Specialty[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedPlan, setSelectedPlan] = useState("");
+  const [selectedPlanCategory, setSelectedPlanCategory] = useState("");
+  const [selectedPlanOperator, setSelectedPlanOperator] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("");
   const [addressInput, setAddressInput] = useState("");
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
@@ -86,8 +91,14 @@ export function Home() {
     loadInitialData();
   }, []);
 
-  function handlePlanChange(planName: string) {
-    setSelectedPlan(planName);
+  function handlePlanOperatorChange(operatorName: string) {
+    setSelectedPlanOperator(operatorName);
+    setSelectedPlanCategory("");
+    setSelectedHospitalId(null);
+  }
+
+  function handlePlanCategoryChange(categoryName: string) {
+    setSelectedPlanCategory(categoryName);
     setSelectedHospitalId(null);
   }
 
@@ -102,19 +113,32 @@ export function Home() {
 
   function handleClearFilters() {
     setSearchTerm("");
-    setSelectedPlan("");
+    setSelectedPlanCategory("");
+    setSelectedPlanOperator("");
     setSelectedSpecialty("");
     setSelectedHospitalId(null);
   }
 
+  const planCategories = useMemo(
+    () => getPlanCategoriesForOperator(allHospitals, selectedPlanOperator),
+    [allHospitals, selectedPlanOperator]
+  );
+
   const filteredHospitals = useMemo(
     () =>
       filterHospitals(allHospitals, {
-        planName: selectedPlan,
+        planCategory: selectedPlanCategory,
+        planOperator: selectedPlanOperator,
         query: searchTerm,
         specialtyName: selectedSpecialty,
       }),
-    [allHospitals, searchTerm, selectedPlan, selectedSpecialty]
+    [
+      allHospitals,
+      searchTerm,
+      selectedPlanCategory,
+      selectedPlanOperator,
+      selectedSpecialty,
+    ]
   );
 
   const sortedHospitals = useMemo(() => {
@@ -285,10 +309,13 @@ export function Home() {
           />
 
           <PlanFilter
+            categories={planCategories}
             plans={plans}
-            selectedPlan={selectedPlan}
+            selectedCategory={selectedPlanCategory}
+            selectedOperator={selectedPlanOperator}
             disabled={isLoading}
-            onChange={handlePlanChange}
+            onCategoryChange={handlePlanCategoryChange}
+            onOperatorChange={handlePlanOperatorChange}
           />
 
           <SpecialtyFilter
@@ -316,7 +343,10 @@ export function Home() {
             <h2>Hospitais disponíveis</h2>
           </div>
 
-          {(searchTerm || selectedPlan || selectedSpecialty) && (
+          {(searchTerm ||
+            selectedPlanCategory ||
+            selectedPlanOperator ||
+            selectedSpecialty) && (
             <button
               className="home__clear-button"
               type="button"

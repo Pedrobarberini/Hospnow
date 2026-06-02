@@ -1,8 +1,14 @@
 import type { HealthPlan, Hospital } from "../types/Hospital";
-import { getPlanDisplayName } from "./planDisplay";
+import {
+  getPlanCategoryName,
+  getPlanDisplayName,
+  getPlanOperatorName,
+  networkCategoryNames,
+} from "./planDisplay";
 
 interface HospitalFilterOptions {
-  planName: string;
+  planCategory: string;
+  planOperator: string;
   query: string;
   specialtyName: string;
 }
@@ -23,6 +29,8 @@ function getPlanSearchText(plan: HealthPlan) {
   return [
     plan.nome,
     getPlanDisplayName(plan),
+    getPlanOperatorName(plan),
+    getPlanCategoryName(plan),
     plan.categoriaProduto,
     plan.codigoAnsOperadora,
     plan.codigoAnsPlano,
@@ -32,14 +40,23 @@ function getPlanSearchText(plan: HealthPlan) {
   ].join(" ");
 }
 
-function hospitalMatchesPlan(hospital: Hospital, planName: string) {
-  if (!planName) {
+function hospitalMatchesPlan(
+  hospital: Hospital,
+  planOperator: string,
+  planCategory: string
+) {
+  if (!planOperator && !planCategory) {
     return true;
   }
 
-  return hospital.planos?.some(
-    (plan) => plan.nome === planName || getPlanDisplayName(plan) === planName
-  );
+  return hospital.planos?.some((plan) => {
+    const matchesOperator =
+      !planOperator || getPlanOperatorName(plan) === planOperator;
+    const matchesCategory =
+      !planCategory || getPlanCategoryName(plan) === planCategory;
+
+    return matchesOperator && matchesCategory;
+  });
 }
 
 function hospitalMatchesSpecialty(hospital: Hospital, specialtyName: string) {
@@ -79,28 +96,57 @@ function hospitalMatchesQuery(hospital: Hospital, query: string) {
 
 export function filterHospitals(
   hospitals: Hospital[],
-  { planName, query, specialtyName }: HospitalFilterOptions
+  { planCategory, planOperator, query, specialtyName }: HospitalFilterOptions
 ) {
   return hospitals.filter(
     (hospital) =>
-      hospitalMatchesPlan(hospital, planName) &&
+      hospitalMatchesPlan(hospital, planOperator, planCategory) &&
       hospitalMatchesSpecialty(hospital, specialtyName) &&
       hospitalMatchesQuery(hospital, query)
   );
 }
 
 export function getLinkedPlans(hospitals: Hospital[]) {
-  const plansByDisplayName = new Map<string, HealthPlan>();
+  const plansByOperatorName = new Map<string, HealthPlan>();
 
   hospitals.forEach((hospital) => {
     hospital.planos?.forEach((plan) => {
-      const displayName = getPlanDisplayName(plan);
+      const operatorName = getPlanOperatorName(plan);
 
-      if (!plansByDisplayName.has(displayName)) {
-        plansByDisplayName.set(displayName, plan);
+      if (!plansByOperatorName.has(operatorName)) {
+        plansByOperatorName.set(operatorName, plan);
       }
     });
   });
 
-  return Array.from(plansByDisplayName.values());
+  return Array.from(plansByOperatorName.values());
+}
+
+export function getPlanCategoriesForOperator(
+  hospitals: Hospital[],
+  planOperator: string
+) {
+  const categories = new Set<string>();
+
+  hospitals.forEach((hospital) => {
+    hospital.planos?.forEach((plan) => {
+      const category = getPlanCategoryName(plan);
+
+      if (
+        category &&
+        (!planOperator || getPlanOperatorName(plan) === planOperator)
+      ) {
+        categories.add(category);
+      }
+    });
+  });
+
+  const orderedCategories = networkCategoryNames.filter((category) =>
+    categories.has(category)
+  );
+  const extraCategories = Array.from(categories)
+    .filter((category) => !networkCategoryNames.includes(category))
+    .sort((first, second) => first.localeCompare(second, "pt-BR"));
+
+  return [...orderedCategories, ...extraCategories];
 }
