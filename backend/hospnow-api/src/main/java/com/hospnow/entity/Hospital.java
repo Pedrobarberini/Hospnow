@@ -27,6 +27,9 @@ public class Hospital {
     private Integer codigoMunicipio;
     private Integer codigoTipoUnidade;
     private String tipoUnidade;
+    private String tipoGestao;
+    private String esferaAdministrativa;
+    private String naturezaJuridica;
     private String fonteDados;
     private LocalDate dataAtualizacaoFonte;
 
@@ -166,6 +169,30 @@ public class Hospital {
 
     public void setTipoUnidade(String tipoUnidade){
         this.tipoUnidade = tipoUnidade;
+    }
+
+    public String getTipoGestao(){
+        return tipoGestao;
+    }
+
+    public void setTipoGestao(String tipoGestao){
+        this.tipoGestao = tipoGestao;
+    }
+
+    public String getEsferaAdministrativa(){
+        return esferaAdministrativa;
+    }
+
+    public void setEsferaAdministrativa(String esferaAdministrativa){
+        this.esferaAdministrativa = esferaAdministrativa;
+    }
+
+    public String getNaturezaJuridica(){
+        return naturezaJuridica;
+    }
+
+    public void setNaturezaJuridica(String naturezaJuridica){
+        this.naturezaJuridica = naturezaJuridica;
     }
 
     public String getFonteDados(){

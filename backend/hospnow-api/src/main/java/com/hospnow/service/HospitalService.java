@@ -2,6 +2,7 @@ package com.hospnow.service;
 
 import com.hospnow.entity.Hospital;
 import com.hospnow.repository.HospitalRepository;
+import com.hospnow.util.HospitalOwnershipClassifier;
 import com.hospnow.util.HospitalSpecialtyCatalog;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -103,6 +104,10 @@ public class HospitalService {
         appendSearchText(searchableText, hospital.getCidade());
         appendSearchText(searchableText, hospital.getUf());
         appendSearchText(searchableText, hospital.getTipoUnidade());
+        appendSearchText(searchableText, hospital.getTipoGestao());
+        appendSearchText(searchableText, hospital.getEsferaAdministrativa());
+        appendSearchText(searchableText, hospital.getNaturezaJuridica());
+        appendSearchText(searchableText, HospitalOwnershipClassifier.classify(hospital));
 
         if (hospital.getPlanos() != null) {
             hospital.getPlanos().forEach(plan -> {

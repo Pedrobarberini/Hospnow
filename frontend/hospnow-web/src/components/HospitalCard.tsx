@@ -20,8 +20,18 @@ export function HospitalCard({
     hospital.especialidades?.map((specialty) => specialty.nome) ?? [];
   const hospitalName = hospital.nome || "Hospital sem nome cadastrado";
   const cityLabel = [hospital.cidade, hospital.uf].filter(Boolean).join(" - ");
+  const ownershipLabel =
+    hospital.classificacaoAdministrativa &&
+    hospital.classificacaoAdministrativa !== "Indefinido"
+      ? hospital.classificacaoAdministrativa
+      : undefined;
+  const emptyPlanLabel =
+    hospital.classificacaoAdministrativa === "Público"
+      ? "Sem convênios privados na base ANS"
+      : "Sem planos vinculados na base ANS";
   const officialBadges = [
     hospital.codigoCnes ? `CNES ${hospital.codigoCnes}` : undefined,
+    ownershipLabel,
     hospital.tipoUnidade,
     cityLabel || undefined,
     hospital.fonteDados ? `Fonte ${hospital.fonteDados}` : undefined,
@@ -96,7 +106,7 @@ export function HospitalCard({
             )}
           </>
         ) : (
-          <span>Nenhum plano vinculado</span>
+          <span>{emptyPlanLabel}</span>
         )}
       </div>
 

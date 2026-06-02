@@ -1,6 +1,7 @@
 package com.hospnow.dto;
 
 import com.hospnow.entity.Hospital;
+import com.hospnow.util.HospitalOwnershipClassifier;
 import com.hospnow.util.HospitalSpecialtyCatalog;
 
 import java.time.LocalDate;
@@ -26,6 +27,10 @@ public record HospitalResponse(
         Integer codigoMunicipio,
         Integer codigoTipoUnidade,
         String tipoUnidade,
+        String tipoGestao,
+        String esferaAdministrativa,
+        String naturezaJuridica,
+        String classificacaoAdministrativa,
         String fonteDados,
         LocalDate dataAtualizacaoFonte,
         List<HealthPlanResponse> planos,
@@ -48,6 +53,10 @@ public record HospitalResponse(
                 hospital.getCodigoMunicipio(),
                 hospital.getCodigoTipoUnidade(),
                 hospital.getTipoUnidade(),
+                hospital.getTipoGestao(),
+                hospital.getEsferaAdministrativa(),
+                hospital.getNaturezaJuridica(),
+                HospitalOwnershipClassifier.classify(hospital),
                 hospital.getFonteDados(),
                 hospital.getDataAtualizacaoFonte(),
                 groupedPlans(hospital),

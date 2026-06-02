@@ -228,6 +228,9 @@ public class OfficialDataImportService {
                     textField(establishment, "numero_cnpj_entidade"),
                     textField(establishment, "nome_razao_social"),
                     textField(establishment, "nome_fantasia"),
+                    textField(establishment, "tipo_gestao"),
+                    textField(establishment, "descricao_esfera_administrativa"),
+                    textField(establishment, "descricao_natureza_juridica_estabelecimento"),
                     integerField(establishment, "codigo_tipo_unidade"),
                     textField(establishment, "codigo_cep_estabelecimento"),
                     textField(establishment, "endereco_estabelecimento"),
@@ -275,6 +278,9 @@ public class OfficialDataImportService {
         hospital.setCodigoMunicipio(establishment.codigoMunicipio());
         hospital.setCodigoTipoUnidade(establishment.codigoTipoUnidade());
         hospital.setTipoUnidade(unitType);
+        hospital.setTipoGestao(normalizeName(establishment.tipoGestao()));
+        hospital.setEsferaAdministrativa(normalizeName(establishment.esferaAdministrativa()));
+        hospital.setNaturezaJuridica(normalizeName(establishment.naturezaJuridica()));
         hospital.setFonteDados("CNES");
         hospital.setDataAtualizacaoFonte(parseDate(establishment.dataAtualizacao()));
         addOfficialSpecialties(hospital, establishment);
@@ -1047,6 +1053,9 @@ public class OfficialDataImportService {
             String numeroCnpjEntidade,
             String nomeRazaoSocial,
             String nomeFantasia,
+            String tipoGestao,
+            String esferaAdministrativa,
+            String naturezaJuridica,
             Integer codigoTipoUnidade,
             String cep,
             String endereco,

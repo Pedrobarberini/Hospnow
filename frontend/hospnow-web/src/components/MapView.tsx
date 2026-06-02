@@ -130,8 +130,18 @@ function HospitalPopup({ hospital }: { hospital: Hospital }) {
   const planDisplay = getLimitedPlanDisplay(hospital.planos, 5);
   const specialtyNames =
     hospital.especialidades?.map((specialty) => specialty.nome) ?? [];
+  const ownershipLabel =
+    hospital.classificacaoAdministrativa &&
+    hospital.classificacaoAdministrativa !== "Indefinido"
+      ? hospital.classificacaoAdministrativa
+      : undefined;
+  const emptyPlanLabel =
+    hospital.classificacaoAdministrativa === "Público"
+      ? "Sem convênios privados na base ANS"
+      : "Sem planos vinculados na base ANS";
   const officialBadges = [
     hospital.codigoCnes ? `CNES ${hospital.codigoCnes}` : undefined,
+    ownershipLabel,
     hospital.tipoUnidade,
     hospital.fonteDados ? `Fonte ${hospital.fonteDados}` : undefined,
   ].filter(Boolean) as string[];
@@ -155,11 +165,17 @@ function HospitalPopup({ hospital }: { hospital: Hospital }) {
         </div>
       )}
       <div className="hospital-popup__tags">
-        {planDisplay.names.map((planName) => (
-          <small key={planName}>{planName}</small>
-        ))}
-        {planDisplay.hiddenCount > 0 && (
-          <small>+ {planDisplay.hiddenCount} planos</small>
+        {planDisplay.totalCount > 0 ? (
+          <>
+            {planDisplay.names.map((planName) => (
+              <small key={planName}>{planName}</small>
+            ))}
+            {planDisplay.hiddenCount > 0 && (
+              <small>+ {planDisplay.hiddenCount} planos</small>
+            )}
+          </>
+        ) : (
+          <small>{emptyPlanLabel}</small>
         )}
         {specialtyNames.map((specialtyName) => (
           <small key={specialtyName}>{specialtyName}</small>

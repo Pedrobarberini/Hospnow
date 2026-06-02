@@ -32,6 +32,10 @@ export interface Hospital {
   codigoMunicipio?: number;
   codigoTipoUnidade?: number;
   tipoUnidade?: string;
+  tipoGestao?: string;
+  esferaAdministrativa?: string;
+  naturezaJuridica?: string;
+  classificacaoAdministrativa?: string;
   fonteDados?: string;
   dataAtualizacaoFonte?: string;
   planos: HealthPlan[];

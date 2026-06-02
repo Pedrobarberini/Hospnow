@@ -86,6 +86,10 @@ function hospitalMatchesQuery(hospital: Hospital, query: string) {
       hospital.cidade,
       hospital.uf,
       hospital.tipoUnidade,
+      hospital.tipoGestao,
+      hospital.esferaAdministrativa,
+      hospital.naturezaJuridica,
+      hospital.classificacaoAdministrativa,
       ...(hospital.planos ?? []).map(getPlanSearchText),
       ...(hospital.especialidades ?? []).map((specialty) => specialty.nome),
     ].join(" ")
