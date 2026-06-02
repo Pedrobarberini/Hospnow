@@ -1,7 +1,8 @@
 import type { HealthPlan } from "../types/Hospital";
 
-const legacyProductPattern = /^(.*)\s+-\s+Produto\s+(\d+)$/i;
-const legacyCategoryPattern = /\s+-\s+(Categoria\s+\d{2}-\d{2}|Intermedi[aá]rio|Categoria n[aã]o informada)$/i;
+const legacyProductPattern = /^(.*?)\s+-\s+Produto\s+(.+)$/i;
+const legacyCategoryPattern =
+  /\s+-\s+(Categoria\s+\d{2}-\d{2}|Intermedi[aá]rio|Categoria n[aã]o informada|Personal\s*\/\s*Pleno|Cl[aá]ssico|Estilo|Absoluto|Superior|Exclusivo\s*\/\s*Master)$/i;
 
 export const networkCategoryNames = [
   "Personal / Pleno",
@@ -16,7 +17,7 @@ function classifyProductCode(productCode?: string) {
   const digitsOnly = productCode?.replace(/\D/g, "") ?? "";
 
   if (digitsOnly.length < 2) {
-    return "Categoria não informada";
+    return "";
   }
 
   const suffix = Number(digitsOnly.slice(-2));
@@ -48,6 +49,7 @@ function normalizeText(value?: string) {
   return (value ?? "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
     .toUpperCase()
     .trim();
 }
@@ -55,7 +57,7 @@ function normalizeText(value?: string) {
 function normalizeCategoryName(category?: string) {
   const normalizedCategory = normalizeText(category);
 
-  if (!normalizedCategory) {
+  if (!normalizedCategory || normalizedCategory.includes("NAO INFORMADA")) {
     return "";
   }
 
@@ -92,12 +94,89 @@ function normalizeCategoryName(category?: string) {
     return "Exclusivo / Master";
   }
 
-  const legacyCategory = normalizedCategory.match(/CATEGORIA\s+(\d{2})-\d{2}/);
+  const legacyCategory = normalizedCategory.match(/CATEGORIA\s+(\d{2})\s+\d{2}/);
   if (legacyCategory) {
     return classifyProductCode(legacyCategory[1]);
   }
 
   return category?.trim() ?? "";
+}
+
+function cleanCorporateSuffixes(name: string) {
+  const cleanedName = name
+    .replace(/\bS\.?\s*A\.?\b/gi, " ")
+    .replace(/\bS\/A\b/gi, " ")
+    .replace(/\bLTDA\.?\b/gi, " ")
+    .replace(/\bEIRELI\b/gi, " ")
+    .replace(/\bCOMPANHIA\b/gi, " ")
+    .replace(/\bSEGUROS?\b/gi, " ")
+    .replace(/\bSA[ÚU]DE\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return cleanedName || name;
+}
+
+function normalizeOperatorName(name?: string) {
+  const sourceName = name?.trim() || "Plano sem nome";
+  const normalizedName = normalizeText(sourceName);
+
+  if (normalizedName.includes("PORTO SEGURO")) {
+    return "Porto Seguro Saúde";
+  }
+
+  if (
+    normalizedName.includes("NOTRE DAME") ||
+    normalizedName.includes("NOTREDAME") ||
+    normalizedName.includes("INTERMEDICA")
+  ) {
+    return "NotreDame Intermédica";
+  }
+
+  if (
+    normalizedName.includes("SUL AMERICA") ||
+    normalizedName.includes("SULAMERICA")
+  ) {
+    return "SulAmérica";
+  }
+
+  if (normalizedName.includes("UNIMED")) {
+    return "Unimed";
+  }
+
+  if (normalizedName.includes("BRADESCO")) {
+    return "Bradesco";
+  }
+
+  if (normalizedName.includes("AMIL")) {
+    return "Amil";
+  }
+
+  if (normalizedName.includes("ALLIANZ")) {
+    return "Allianz";
+  }
+
+  if (normalizedName.includes("HAPVIDA")) {
+    return "Hapvida";
+  }
+
+  if (normalizedName.includes("PREVENT SENIOR")) {
+    return "Prevent Senior";
+  }
+
+  if (normalizedName.includes("GOLDEN CROSS")) {
+    return "Golden Cross";
+  }
+
+  if (normalizedName.includes("CARE PLUS")) {
+    return "Care Plus";
+  }
+
+  if (normalizedName.includes("OMINT")) {
+    return "Omint";
+  }
+
+  return cleanCorporateSuffixes(sourceName);
 }
 
 export function getPlanCategoryName(plan: HealthPlan) {
@@ -114,7 +193,11 @@ export function getPlanCategoryName(plan: HealthPlan) {
   }
 
   const legacyCategory = name.match(legacyCategoryPattern);
-  return legacyCategory ? normalizeCategoryName(legacyCategory[1]) : "";
+  if (legacyCategory) {
+    return normalizeCategoryName(legacyCategory[1]);
+  }
+
+  return classifyProductCode(plan.codigoAnsPlano);
 }
 
 export function getPlanOperatorName(plan: HealthPlan) {
@@ -122,32 +205,31 @@ export function getPlanOperatorName(plan: HealthPlan) {
   const legacyProduct = name.match(legacyProductPattern);
 
   if (legacyProduct) {
-    return legacyProduct[1].trim();
+    return normalizeOperatorName(legacyProduct[1]);
   }
 
-  const category = getPlanCategoryName(plan);
   const legacyCategory = name.match(legacyCategoryPattern);
 
-  if (category && legacyCategory) {
-    return name.replace(legacyCategoryPattern, "").trim();
+  if (legacyCategory) {
+    return normalizeOperatorName(name.replace(legacyCategoryPattern, ""));
   }
 
   for (const categoryName of networkCategoryNames) {
     const suffix = ` - ${categoryName}`;
 
     if (name.endsWith(suffix)) {
-      return name.slice(0, -suffix.length).trim();
+      return normalizeOperatorName(name.slice(0, -suffix.length));
     }
   }
 
-  return name;
+  return normalizeOperatorName(name);
 }
 
 export function getPlanDisplayName(plan: HealthPlan) {
   const operatorName = getPlanOperatorName(plan);
   const categoryName = getPlanCategoryName(plan);
 
-  return categoryName ? `${operatorName} - ${categoryName}` : operatorName;
+  return categoryName ? `${operatorName} - ${categoryName}` : "";
 }
 
 export function getUniquePlanDisplayNames(plans: HealthPlan[] = []) {

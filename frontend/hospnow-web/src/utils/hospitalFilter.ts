@@ -111,9 +111,14 @@ export function getLinkedPlans(hospitals: Hospital[]) {
 
   hospitals.forEach((hospital) => {
     hospital.planos?.forEach((plan) => {
+      const categoryName = getPlanCategoryName(plan);
       const operatorName = getPlanOperatorName(plan);
 
-      if (!plansByOperatorName.has(operatorName)) {
+      if (
+        categoryName &&
+        operatorName &&
+        !plansByOperatorName.has(operatorName)
+      ) {
         plansByOperatorName.set(operatorName, plan);
       }
     });

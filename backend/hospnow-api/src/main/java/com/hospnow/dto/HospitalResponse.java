@@ -62,6 +62,7 @@ public record HospitalResponse(
 
         hospital.getPlanos().stream()
                 .map(HealthPlanResponse::from)
+                .filter(HealthPlanResponse::hasCategory)
                 .forEach(plan -> plansByName.putIfAbsent(plan.dedupeKey(), plan));
 
         return new ArrayList<>(plansByName.values());
