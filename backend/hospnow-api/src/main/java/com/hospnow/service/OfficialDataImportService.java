@@ -155,6 +155,7 @@ public class OfficialDataImportService {
 
         int scanLimit = maxRows == null || maxRows <= 0 ? 250_000 : maxRows;
         AnsImportCounters counters = new AnsImportCounters(scanLimit);
+        resetAnsPlanLinks();
 
         try {
             processAnsProductsFiles(hospitalsByCnes, targetUfs, counters);
@@ -285,19 +286,24 @@ public class OfficialDataImportService {
             String coverage,
             String status
     ) {
-        String normalizedPlanCode = blankToNull(planCode);
+        ProductCategory productCategory = classifyAnsProductCategory(planCode);
+        String groupedPlanCode = buildGroupedAnsPlanCode(operatorCode, operatorName, productCategory);
         String normalizedOperator = normalizeName(operatorName);
-        String planName = normalizedPlanCode == null
-                ? normalizedOperator
-                : normalizedOperator + " - Produto " + normalizedPlanCode;
-        Optional<HealthPlan> existingPlan = normalizedPlanCode == null
+        String displayOperator = normalizedOperator == null
+                ? "Operadora " + firstNotBlank(operatorCode, "sem nome")
+                : normalizedOperator;
+        String planName = productCategory.label() == null
+                ? displayOperator
+                : displayOperator + " - " + productCategory.label();
+        Optional<HealthPlan> existingPlan = groupedPlanCode == null
                 ? healthPlanRepository.findByNomeIgnoreCase(planName)
-                : healthPlanRepository.findByCodigoAnsPlano(normalizedPlanCode);
+                : healthPlanRepository.findByCodigoAnsPlano(groupedPlanCode);
         HealthPlan plan = existingPlan.orElseGet(HealthPlan::new);
 
         plan.setNome(planName);
         plan.setCodigoAnsOperadora(blankToNull(operatorCode));
-        plan.setCodigoAnsPlano(normalizedPlanCode);
+        plan.setCodigoAnsPlano(groupedPlanCode);
+        plan.setCategoriaProduto(productCategory.label());
         plan.setModalidadeOperadora(normalizeName(modality));
         plan.setSegmentacaoAssistencial(normalizeName(segment));
         plan.setAbrangenciaGeografica(normalizeName(coverage));
@@ -305,6 +311,44 @@ public class OfficialDataImportService {
         plan.setFonteDados("ANS");
 
         return healthPlanRepository.save(plan);
+    }
+
+    private ProductCategory classifyAnsProductCategory(String planCode) {
+        String normalizedPlanCode = digits(planCode);
+
+        if (normalizedPlanCode.length() < 2) {
+            return new ProductCategory("sem-categoria", "Categoria não informada");
+        }
+
+        int suffix = Integer.parseInt(normalizedPlanCode.substring(normalizedPlanCode.length() - 2));
+
+        if (suffix >= 80 && suffix <= 88) {
+            return new ProductCategory("80-88", "Intermediário");
+        }
+
+        int start = suffix >= 89 ? 89 : (suffix / 10) * 10;
+        int end = suffix >= 89 ? 99 : start + 9;
+        String range = String.format(Locale.ROOT, "%02d-%02d", start, end);
+
+        return new ProductCategory(range, "Categoria " + range);
+    }
+
+    private String buildGroupedAnsPlanCode(
+            String operatorCode,
+            String operatorName,
+            ProductCategory productCategory
+    ) {
+        String operatorKey = blankToNull(digits(operatorCode));
+
+        if (operatorKey == null) {
+            operatorKey = normalizeForComparison(operatorName).replaceAll("[^A-Z0-9]", "");
+        }
+
+        if (isBlank(operatorKey)) {
+            return null;
+        }
+
+        return operatorKey + ":" + productCategory.key();
     }
 
     private boolean linkPlanToHospital(Hospital hospital, HealthPlan plan) {
@@ -325,6 +369,31 @@ public class OfficialDataImportService {
         hospital.setPlanos(plans);
         hospitalRepository.save(hospital);
         return true;
+    }
+
+    private void resetAnsPlanLinks() {
+        for (Hospital hospital : hospitalRepository.findAll()) {
+            if (hospital.getPlanos() == null || hospital.getPlanos().isEmpty()) {
+                continue;
+            }
+
+            List<HealthPlan> retainedPlans = hospital.getPlanos().stream()
+                    .filter(plan -> !sameText(plan.getFonteDados(), "ANS"))
+                    .toList();
+
+            if (retainedPlans.size() != hospital.getPlanos().size()) {
+                hospital.setPlanos(new ArrayList<>(retainedPlans));
+                hospitalRepository.save(hospital);
+            }
+        }
+
+        hospitalRepository.flush();
+
+        List<HealthPlan> officialAnsPlans = healthPlanRepository.findByFonteDadosIgnoreCase("ANS");
+        if (!officialAnsPlans.isEmpty()) {
+            healthPlanRepository.deleteAll(officialAnsPlans);
+            healthPlanRepository.flush();
+        }
     }
 
     private Map<String, Hospital> loadHospitalsByCnes() {
@@ -417,9 +486,8 @@ public class OfficialDataImportService {
                 continue;
             }
 
-            String planCode = value(row, planCodeIndex);
             HealthPlan plan = upsertAnsPlan(
-                    planCode,
+                    value(row, planCodeIndex),
                     value(row, operatorCodeIndex),
                     value(row, operatorNameIndex),
                     value(row, modalityIndex),
@@ -429,11 +497,13 @@ public class OfficialDataImportService {
             );
 
             String pairKey = cnes + "|" + plan.getCodigoAnsPlano();
-            if (counters.linkedPairs.add(pairKey) && linkPlanToHospital(hospital, plan)) {
-                counters.linkedPlans++;
-            }
+            if (counters.linkedPairs.add(pairKey)) {
+                counters.importedPlans++;
 
-            counters.importedPlans++;
+                if (linkPlanToHospital(hospital, plan)) {
+                    counters.linkedPlans++;
+                }
+            }
         }
     }
 
@@ -929,6 +999,9 @@ public class OfficialDataImportService {
             long compressedSize,
             long localHeaderOffset
     ) {
+    }
+
+    private record ProductCategory(String key, String label) {
     }
 
     private static class AnsImportCounters {

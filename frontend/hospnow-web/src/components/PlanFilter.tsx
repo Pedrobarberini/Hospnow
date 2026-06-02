@@ -1,4 +1,5 @@
 import type { HealthPlan } from "../types/Hospital";
+import { getPlanDisplayName } from "../utils/planDisplay";
 
 interface PlanFilterProps {
   plans: HealthPlan[];
@@ -13,6 +14,18 @@ export function PlanFilter({
   disabled = false,
   onChange,
 }: PlanFilterProps) {
+  const planOptions = Array.from(
+    plans.reduce((options, plan) => {
+      const displayName = getPlanDisplayName(plan);
+
+      if (!options.has(displayName)) {
+        options.set(displayName, plan);
+      }
+
+      return options;
+    }, new Map<string, HealthPlan>())
+  ).sort(([first], [second]) => first.localeCompare(second, "pt-BR"));
+
   return (
     <label className="plan-filter">
       <span>Plano de saúde</span>
@@ -22,9 +35,9 @@ export function PlanFilter({
         onChange={(event) => onChange(event.target.value)}
       >
         <option value="">Todos os planos</option>
-        {plans.map((plan) => (
-          <option key={plan.id} value={plan.nome}>
-            {plan.nome}
+        {planOptions.map(([displayName, plan]) => (
+          <option key={displayName} value={plan.nome}>
+            {displayName}
           </option>
         ))}
       </select>

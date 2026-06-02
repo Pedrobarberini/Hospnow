@@ -15,6 +15,7 @@ public class HealthPlan {
     private String nome;
     private String codigoAnsOperadora;
     private String codigoAnsPlano;
+    private String categoriaProduto;
     private String modalidadeOperadora;
     private String segmentacaoAssistencial;
     private String abrangenciaGeografica;
@@ -51,6 +52,14 @@ public class HealthPlan {
 
     public void setCodigoAnsPlano(String codigoAnsPlano){
         this.codigoAnsPlano = codigoAnsPlano;
+    }
+
+    public String getCategoriaProduto(){
+        return categoriaProduto;
+    }
+
+    public void setCategoriaProduto(String categoriaProduto){
+        this.categoriaProduto = categoriaProduto;
     }
 
     public String getModalidadeOperadora(){

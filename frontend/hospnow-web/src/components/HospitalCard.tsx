@@ -1,5 +1,6 @@
 import type { KeyboardEvent } from "react";
 import type { Hospital } from "../types/Hospital";
+import { getLimitedPlanDisplay } from "../utils/planDisplay";
 
 interface HospitalCardProps {
   hospital: Hospital;
@@ -14,7 +15,7 @@ export function HospitalCard({
   isSelected = false,
   onSelect,
 }: HospitalCardProps) {
-  const planNames = hospital.planos.map((plan) => plan.nome);
+  const planDisplay = getLimitedPlanDisplay(hospital.planos, 6);
   const specialtyNames =
     hospital.especialidades?.map((specialty) => specialty.nome) ?? [];
   const hospitalName = hospital.nome || "Hospital sem nome cadastrado";
@@ -54,7 +55,8 @@ export function HospitalCard({
         </div>
 
         <span className="hospital-card__badge">
-          {planNames.length} {planNames.length === 1 ? "plano" : "planos"}
+          {planDisplay.totalCount}{" "}
+          {planDisplay.totalCount === 1 ? "plano" : "planos"}
         </span>
       </div>
 
@@ -84,8 +86,15 @@ export function HospitalCard({
       )}
 
       <div className="hospital-card__plans" aria-label="Planos aceitos">
-        {planNames.length > 0 ? (
-          planNames.map((planName) => <span key={planName}>{planName}</span>)
+        {planDisplay.totalCount > 0 ? (
+          <>
+            {planDisplay.names.map((planName) => (
+              <span key={planName}>{planName}</span>
+            ))}
+            {planDisplay.hiddenCount > 0 && (
+              <span>+ {planDisplay.hiddenCount} categorias</span>
+            )}
+          </>
         ) : (
           <span>Nenhum plano vinculado</span>
         )}

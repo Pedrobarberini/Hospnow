@@ -9,6 +9,7 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import type { Hospital } from "../types/Hospital";
+import { getLimitedPlanDisplay } from "../utils/planDisplay";
 import "leaflet/dist/leaflet.css";
 
 interface MapViewProps {
@@ -126,7 +127,7 @@ function FocusSelectedHospital({ hospital }: { hospital?: Hospital }) {
 }
 
 function HospitalPopup({ hospital }: { hospital: Hospital }) {
-  const planNames = hospital.planos.map((plan) => plan.nome);
+  const planDisplay = getLimitedPlanDisplay(hospital.planos, 5);
   const specialtyNames =
     hospital.especialidades?.map((specialty) => specialty.nome) ?? [];
   const officialBadges = [
@@ -154,9 +155,12 @@ function HospitalPopup({ hospital }: { hospital: Hospital }) {
         </div>
       )}
       <div className="hospital-popup__tags">
-        {planNames.map((planName) => (
+        {planDisplay.names.map((planName) => (
           <small key={planName}>{planName}</small>
         ))}
+        {planDisplay.hiddenCount > 0 && (
+          <small>+ {planDisplay.hiddenCount} categorias</small>
+        )}
         {specialtyNames.map((specialtyName) => (
           <small key={specialtyName}>{specialtyName}</small>
         ))}

@@ -3,6 +3,7 @@ export interface HealthPlan {
   nome: string;
   codigoAnsOperadora?: string;
   codigoAnsPlano?: string;
+  categoriaProduto?: string;
   modalidadeOperadora?: string;
   segmentacaoAssistencial?: string;
   abrangenciaGeografica?: string;
