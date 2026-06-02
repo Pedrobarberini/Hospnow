@@ -92,7 +92,7 @@ export function HospitalCard({
               <span key={planName}>{planName}</span>
             ))}
             {planDisplay.hiddenCount > 0 && (
-              <span>+ {planDisplay.hiddenCount} categorias</span>
+              <span>+ {planDisplay.hiddenCount} planos</span>
             )}
           </>
         ) : (

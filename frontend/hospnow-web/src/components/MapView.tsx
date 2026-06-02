@@ -159,7 +159,7 @@ function HospitalPopup({ hospital }: { hospital: Hospital }) {
           <small key={planName}>{planName}</small>
         ))}
         {planDisplay.hiddenCount > 0 && (
-          <small>+ {planDisplay.hiddenCount} categorias</small>
+          <small>+ {planDisplay.hiddenCount} planos</small>
         )}
         {specialtyNames.map((specialtyName) => (
           <small key={specialtyName}>{specialtyName}</small>

@@ -54,10 +54,12 @@ export function PlanFilter({
         <span>Categoria do plano</span>
         <select
           value={selectedCategory}
-          disabled={disabled || categories.length === 0}
+          disabled={disabled || !selectedOperator || categories.length === 0}
           onChange={(event) => onCategoryChange(event.target.value)}
         >
-          <option value="">Todas as categorias</option>
+          <option value="">
+            {selectedOperator ? "Todas as categorias" : "Escolha um plano primeiro"}
+          </option>
           {categories.map((category) => (
             <option key={category} value={category}>
               {category}

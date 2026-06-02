@@ -3,7 +3,7 @@ import {
   getPlanCategoryName,
   getPlanDisplayName,
   getPlanOperatorName,
-  networkCategoryNames,
+  getCategoryOrderForOperator,
 } from "./planDisplay";
 
 interface HospitalFilterOptions {
@@ -131,6 +131,10 @@ export function getPlanCategoriesForOperator(
   hospitals: Hospital[],
   planOperator: string
 ) {
+  if (!planOperator) {
+    return [];
+  }
+
   const categories = new Set<string>();
 
   hospitals.forEach((hospital) => {
@@ -146,11 +150,12 @@ export function getPlanCategoriesForOperator(
     });
   });
 
-  const orderedCategories = networkCategoryNames.filter((category) =>
+  const categoryOrder = getCategoryOrderForOperator(planOperator);
+  const orderedCategories = categoryOrder.filter((category) =>
     categories.has(category)
   );
   const extraCategories = Array.from(categories)
-    .filter((category) => !networkCategoryNames.includes(category))
+    .filter((category) => !categoryOrder.includes(category))
     .sort((first, second) => first.localeCompare(second, "pt-BR"));
 
   return [...orderedCategories, ...extraCategories];

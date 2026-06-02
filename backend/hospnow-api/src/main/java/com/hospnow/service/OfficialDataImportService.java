@@ -7,6 +7,7 @@ import com.hospnow.entity.Specialty;
 import com.hospnow.repository.HealthPlanRepository;
 import com.hospnow.repository.HospitalRepository;
 import com.hospnow.repository.SpecialtyRepository;
+import com.hospnow.util.PlanCategoryCatalog;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -286,12 +287,13 @@ public class OfficialDataImportService {
             String coverage,
             String status
     ) {
-        ProductCategory productCategory = classifyAnsProductCategory(planCode);
+        String displayOperator = PlanCategoryCatalog.normalizeOperatorName(operatorName);
+        if (sameText(displayOperator, "Plano sem nome")) {
+            displayOperator = "Operadora " + firstNotBlank(operatorCode, "sem nome");
+        }
+        String categoryLabel = PlanCategoryCatalog.inferCategory(displayOperator, operatorName, null, planCode);
+        ProductCategory productCategory = new ProductCategory(slug(firstNotBlank(categoryLabel, "sem-categoria")), categoryLabel);
         String groupedPlanCode = buildGroupedAnsPlanCode(operatorCode, operatorName, productCategory);
-        String normalizedOperator = normalizeName(operatorName);
-        String displayOperator = normalizedOperator == null
-                ? "Operadora " + firstNotBlank(operatorCode, "sem nome")
-                : normalizedOperator;
         String planName = productCategory.label() == null
                 ? displayOperator
                 : displayOperator + " - " + productCategory.label();
@@ -311,38 +313,6 @@ public class OfficialDataImportService {
         plan.setFonteDados("ANS");
 
         return healthPlanRepository.save(plan);
-    }
-
-    private ProductCategory classifyAnsProductCategory(String planCode) {
-        String normalizedPlanCode = digits(planCode);
-
-        if (normalizedPlanCode.length() < 2) {
-            return new ProductCategory("sem-categoria", "Categoria não informada");
-        }
-
-        int suffix = Integer.parseInt(normalizedPlanCode.substring(normalizedPlanCode.length() - 2));
-
-        if (suffix <= 19) {
-            return new ProductCategory("personal-pleno", "Personal / Pleno");
-        }
-
-        if (suffix <= 39) {
-            return new ProductCategory("classico", "Clássico");
-        }
-
-        if (suffix <= 59) {
-            return new ProductCategory("estilo", "Estilo");
-        }
-
-        if (suffix <= 74) {
-            return new ProductCategory("absoluto", "Absoluto");
-        }
-
-        if (suffix <= 88) {
-            return new ProductCategory("superior", "Superior");
-        }
-
-        return new ProductCategory("exclusivo-master", "Exclusivo / Master");
     }
 
     private String buildGroupedAnsPlanCode(
@@ -893,6 +863,13 @@ public class OfficialDataImportService {
 
     private static String firstNotBlank(String first, String second) {
         return isBlank(first) ? second : first;
+    }
+
+    private static String slug(String value) {
+        return normalizeForComparison(value)
+                .replaceAll("[^A-Z0-9]+", "-")
+                .replaceAll("(^-|-$)", "")
+                .toLowerCase(Locale.ROOT);
     }
 
     private static String blankToNull(String value) {
