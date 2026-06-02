@@ -372,6 +372,7 @@ export function Home() {
                     <span />
                     <strong />
                     <p />
+                    Carregando hospitais...
                     <p />
                   </div>
                 ))}
