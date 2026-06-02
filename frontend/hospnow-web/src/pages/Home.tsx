@@ -4,10 +4,10 @@ import { MapView, type UserLocation } from "../components/MapView";
 import { PlanFilter } from "../components/PlanFilter";
 import { SearchFilter } from "../components/SearchFilter";
 import { SpecialtyFilter } from "../components/SpecialtyFilter";
-import { getHospitals, searchHospitals } from "../services/hospitalService";
-import { getHealthPlans } from "../services/planService";
+import { getHospitals } from "../services/hospitalService";
 import { getSpecialties } from "../services/specialtyService";
 import type { HealthPlan, Hospital, Specialty } from "../types/Hospital";
+import { filterHospitals, getLinkedPlans } from "../utils/hospitalFilter";
 import logoUrl from "../assets/logo-hospnow.png";
 
 function getDistanceInKm(hospital: Hospital, userLocation: UserLocation | null) {
@@ -42,7 +42,7 @@ function getDistanceInKm(hospital: Hospital, userLocation: UserLocation | null) 
 
 export function Home() {
   const mapViewRef = useRef<HTMLElement | null>(null);
-  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [allHospitals, setAllHospitals] = useState<Hospital[]>([]);
   const [plans, setPlans] = useState<HealthPlan[]>([]);
   const [specialties, setSpecialties] = useState<Specialty[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -66,14 +66,13 @@ export function Home() {
         setIsLoading(true);
         setErrorMessage("");
 
-        const [hospitalsData, plansData, specialtiesData] = await Promise.all([
+        const [hospitalsData, specialtiesData] = await Promise.all([
           getHospitals(),
-          getHealthPlans(),
           getSpecialties(),
         ]);
 
-        setHospitals(hospitalsData);
-        setPlans(plansData);
+        setAllHospitals(hospitalsData);
+        setPlans(getLinkedPlans(hospitalsData));
         setSpecialties(specialtiesData);
       } catch {
         setErrorMessage(
@@ -87,64 +86,43 @@ export function Home() {
     loadInitialData();
   }, []);
 
-  async function loadFilteredHospitals(
-    planName: string,
-    specialtyName: string,
-    query: string
-  ) {
-    try {
-      setIsLoading(true);
-      setErrorMessage("");
-
-      const hospitalsData =
-        planName || specialtyName || query
-          ? await searchHospitals({ planName, query, specialtyName })
-          : await getHospitals();
-
-      setHospitals(hospitalsData);
-      setSelectedHospitalId(null);
-    } catch {
-      setHospitals([]);
-      setSelectedHospitalId(null);
-      setErrorMessage(
-        "Não foi possível filtrar os hospitais para os critérios selecionados."
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handlePlanChange(planName: string) {
+  function handlePlanChange(planName: string) {
     setSelectedPlan(planName);
-    await loadFilteredHospitals(planName, selectedSpecialty, searchTerm.trim());
+    setSelectedHospitalId(null);
   }
 
-  async function handleSpecialtyChange(specialtyName: string) {
+  function handleSpecialtyChange(specialtyName: string) {
     setSelectedSpecialty(specialtyName);
-    await loadFilteredHospitals(selectedPlan, specialtyName, searchTerm.trim());
+    setSelectedHospitalId(null);
   }
 
-  async function handleSearchSubmit() {
-    await loadFilteredHospitals(
-      selectedPlan,
-      selectedSpecialty,
-      searchTerm.trim()
-    );
+  function handleSearchSubmit() {
+    setSelectedHospitalId(null);
   }
 
-  async function handleClearFilters() {
+  function handleClearFilters() {
     setSearchTerm("");
     setSelectedPlan("");
     setSelectedSpecialty("");
-    await loadFilteredHospitals("", "", "");
+    setSelectedHospitalId(null);
   }
+
+  const filteredHospitals = useMemo(
+    () =>
+      filterHospitals(allHospitals, {
+        planName: selectedPlan,
+        query: searchTerm,
+        specialtyName: selectedSpecialty,
+      }),
+    [allHospitals, searchTerm, selectedPlan, selectedSpecialty]
+  );
 
   const sortedHospitals = useMemo(() => {
     if (!sortByDistance || !userLocation) {
-      return hospitals;
+      return filteredHospitals;
     }
 
-    return [...hospitals].sort((firstHospital, secondHospital) => {
+    return [...filteredHospitals].sort((firstHospital, secondHospital) => {
       const firstDistance =
         getDistanceInKm(firstHospital, userLocation) ??
         Number.POSITIVE_INFINITY;
@@ -154,7 +132,7 @@ export function Home() {
 
       return firstDistance - secondDistance;
     });
-  }, [hospitals, sortByDistance, userLocation]);
+  }, [filteredHospitals, sortByDistance, userLocation]);
 
   function handleHospitalSelect(hospital: Hospital) {
     setSelectedHospitalId(hospital.id);
@@ -299,7 +277,10 @@ export function Home() {
           <SearchFilter
             searchTerm={searchTerm}
             disabled={isLoading}
-            onChange={setSearchTerm}
+            onChange={(value) => {
+              setSearchTerm(value);
+              setSelectedHospitalId(null);
+            }}
             onSubmit={handleSearchSubmit}
           />
 
@@ -318,9 +299,9 @@ export function Home() {
           />
 
           <div className="home__stats">
-            <strong>{hospitals.length}</strong>
+            <strong>{filteredHospitals.length}</strong>
             <span>
-              {hospitals.length === 1
+              {filteredHospitals.length === 1
                 ? "hospital encontrado"
                 : "hospitais encontrados"}
             </span>
@@ -368,7 +349,7 @@ export function Home() {
             </div>
             <div className="map-view map-view--loading" />
           </div>
-        ) : hospitals.length > 0 ? (
+        ) : filteredHospitals.length > 0 ? (
           <div className="home__results">
             <div className="hospital-results-panel">
               <div className="hospital-list-toolbar">
@@ -408,7 +389,7 @@ export function Home() {
             </div>
             <MapView
               addressInput={addressInput}
-              hospitals={hospitals}
+              hospitals={filteredHospitals}
               isSearchingAddress={isSearchingAddress}
               isLocating={isLocating}
               locationMessage={locationMessage}

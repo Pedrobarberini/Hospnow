@@ -35,8 +35,8 @@ export function PlanFilter({
         onChange={(event) => onChange(event.target.value)}
       >
         <option value="">Todos os planos</option>
-        {planOptions.map(([displayName, plan]) => (
-          <option key={displayName} value={plan.nome}>
+        {planOptions.map(([displayName]) => (
+          <option key={displayName} value={displayName}>
             {displayName}
           </option>
         ))}
