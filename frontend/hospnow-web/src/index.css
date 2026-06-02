@@ -34,6 +34,7 @@ body {
 }
 
 button,
+input,
 select {
   font: inherit;
 }
@@ -43,6 +44,7 @@ button {
 }
 
 button:disabled,
+input:disabled,
 select:disabled {
   cursor: not-allowed;
   opacity: 0.7;
@@ -165,18 +167,21 @@ select:disabled {
   box-shadow: 0 22px 50px rgba(7, 28, 54, 0.2);
 }
 
-.plan-filter {
+.plan-filter,
+.search-filter label {
   display: grid;
   gap: 8px;
 }
 
-.plan-filter span {
+.plan-filter span,
+.search-filter span {
   color: var(--color-muted);
   font-size: 0.86rem;
   font-weight: 700;
 }
 
-.plan-filter select {
+.plan-filter select,
+.search-filter input {
   width: 100%;
   min-height: 48px;
   padding: 0 14px;
@@ -187,9 +192,31 @@ select:disabled {
   outline: none;
 }
 
-.plan-filter select:focus {
+.plan-filter select:focus,
+.search-filter input:focus {
   border-color: var(--color-red);
   box-shadow: 0 0 0 3px rgba(227, 6, 19, 0.14);
+}
+
+.search-filter {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.search-filter button {
+  min-height: 48px;
+  padding: 0 16px;
+  color: #ffffff;
+  background: var(--color-red);
+  border: 1px solid var(--color-red);
+  border-radius: 8px;
+  font-weight: 800;
+}
+
+.search-filter button:hover {
+  background: var(--color-red-dark);
 }
 
 .home__stats {
@@ -804,6 +831,11 @@ select:disabled {
     grid-template-columns: 1fr;
   }
 
+  .search-filter {
+    grid-template-columns: 1fr;
+  }
+
+  .search-filter button,
   .map-view__address-form button {
     width: 100%;
   }

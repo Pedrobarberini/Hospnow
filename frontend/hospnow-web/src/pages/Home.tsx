@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { HospitalCard } from "../components/HospitalCard";
 import { MapView, type UserLocation } from "../components/MapView";
 import { PlanFilter } from "../components/PlanFilter";
+import { SearchFilter } from "../components/SearchFilter";
 import { SpecialtyFilter } from "../components/SpecialtyFilter";
 import { getHospitals, searchHospitals } from "../services/hospitalService";
 import { getHealthPlans } from "../services/planService";
@@ -44,6 +45,7 @@ export function Home() {
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [plans, setPlans] = useState<HealthPlan[]>([]);
   const [specialties, setSpecialties] = useState<Specialty[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedPlan, setSelectedPlan] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("");
   const [addressInput, setAddressInput] = useState("");
@@ -87,15 +89,16 @@ export function Home() {
 
   async function loadFilteredHospitals(
     planName: string,
-    specialtyName: string
+    specialtyName: string,
+    query: string
   ) {
     try {
       setIsLoading(true);
       setErrorMessage("");
 
       const hospitalsData =
-        planName || specialtyName
-          ? await searchHospitals({ planName, specialtyName })
+        planName || specialtyName || query
+          ? await searchHospitals({ planName, query, specialtyName })
           : await getHospitals();
 
       setHospitals(hospitalsData);
@@ -113,18 +116,27 @@ export function Home() {
 
   async function handlePlanChange(planName: string) {
     setSelectedPlan(planName);
-    await loadFilteredHospitals(planName, selectedSpecialty);
+    await loadFilteredHospitals(planName, selectedSpecialty, searchTerm.trim());
   }
 
   async function handleSpecialtyChange(specialtyName: string) {
     setSelectedSpecialty(specialtyName);
-    await loadFilteredHospitals(selectedPlan, specialtyName);
+    await loadFilteredHospitals(selectedPlan, specialtyName, searchTerm.trim());
+  }
+
+  async function handleSearchSubmit() {
+    await loadFilteredHospitals(
+      selectedPlan,
+      selectedSpecialty,
+      searchTerm.trim()
+    );
   }
 
   async function handleClearFilters() {
+    setSearchTerm("");
     setSelectedPlan("");
     setSelectedSpecialty("");
-    await loadFilteredHospitals("", "");
+    await loadFilteredHospitals("", "", "");
   }
 
   const sortedHospitals = useMemo(() => {
@@ -284,6 +296,13 @@ export function Home() {
         </div>
 
         <div className="home__search-panel">
+          <SearchFilter
+            searchTerm={searchTerm}
+            disabled={isLoading}
+            onChange={setSearchTerm}
+            onSubmit={handleSearchSubmit}
+          />
+
           <PlanFilter
             plans={plans}
             selectedPlan={selectedPlan}
@@ -316,7 +335,7 @@ export function Home() {
             <h2>Hospitais disponíveis</h2>
           </div>
 
-          {(selectedPlan || selectedSpecialty) && (
+          {(searchTerm || selectedPlan || selectedSpecialty) && (
             <button
               className="home__clear-button"
               type="button"

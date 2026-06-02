@@ -16,9 +16,14 @@ export async function getHospitalsByPlan(planName: string): Promise<Hospital[]> 
 
 export async function searchHospitals(filters: {
   planName?: string;
+  query?: string;
   specialtyName?: string;
 }): Promise<Hospital[]> {
   const params = new URLSearchParams();
+
+  if (filters.query) {
+    params.set("q", filters.query);
+  }
 
   if (filters.planName) {
     params.set("plan", filters.planName);

@@ -39,9 +39,10 @@ public class HospitalController {
     @GetMapping("/search")
     public List<Hospital> buscar(
             @RequestParam(required = false) String plan,
-            @RequestParam(required = false) String specialty
+            @RequestParam(required = false) String specialty,
+            @RequestParam(required = false) String q
     ) {
-        return service.buscar(plan, specialty);
+        return service.buscar(plan, specialty, q);
     }
 
 }

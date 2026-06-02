@@ -32,24 +32,29 @@ public class HospitalService {
     }
 
     public List<Hospital> buscar(String nomePlano, String nomeEspecialidade){
+        return buscar(nomePlano, nomeEspecialidade, null);
+    }
+
+    public List<Hospital> buscar(String nomePlano, String nomeEspecialidade, String termoBusca){
         String plano = nomePlano == null || nomePlano.isBlank() ? null : nomePlano;
         String especialidade = nomeEspecialidade == null || nomeEspecialidade.isBlank()
                 ? null
                 : nomeEspecialidade;
+        String busca = termoBusca == null || termoBusca.isBlank() ? null : termoBusca.trim();
 
-        if (plano == null && especialidade == null) {
+        if (plano == null && especialidade == null && busca == null) {
             return listar();
         }
 
-        if (plano != null && especialidade == null) {
+        if (plano != null && especialidade == null && busca == null) {
             return buscarPorPlano(plano);
         }
 
-        if (plano == null) {
+        if (plano == null && busca == null) {
             return buscarPorEspecialidade(especialidade);
         }
 
-        return repository.search(plano, especialidade);
+        return repository.search(plano, especialidade, busca);
     }
 
 }
