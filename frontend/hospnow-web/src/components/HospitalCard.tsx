@@ -28,10 +28,12 @@ export function HospitalCard({
     hospital.classificacaoAdministrativa !== "Indefinido"
       ? hospital.classificacaoAdministrativa
       : undefined;
-  const emptyPlanLabel =
-    hospital.classificacaoAdministrativa === "Público"
-      ? "Sem convênios privados na base ANS"
-      : "Sem planos vinculados na base ANS";
+  const isPublicNetwork =
+    hospital.classificacaoAdministrativa === "Público" &&
+    planDisplay.totalCount === 0;
+  const emptyPlanLabel = isPublicNetwork
+    ? "Rede Pública"
+    : "Sem planos vinculados na base ANS";
   const officialBadges = [
     ownershipLabel,
     hospital.tipoUnidade,
@@ -66,8 +68,11 @@ export function HospitalCard({
         </div>
 
         <span className="hospital-card__badge">
-          {planDisplay.totalCount}{" "}
-          {planDisplay.totalCount === 1 ? "plano" : "planos"}
+          {isPublicNetwork
+            ? "Rede Pública"
+            : `${planDisplay.totalCount} ${
+                planDisplay.totalCount === 1 ? "plano" : "planos"
+              }`}
         </span>
       </div>
 

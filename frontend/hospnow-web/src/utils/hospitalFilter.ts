@@ -6,6 +6,8 @@ import {
   getCategoryOrderForOperator,
 } from "./planDisplay";
 
+export const PUBLIC_NETWORK_OPERATOR = "Rede Pública";
+
 interface HospitalFilterOptions {
   planCategory: string;
   planOperator: string;
@@ -49,6 +51,14 @@ function hospitalMatchesPlan(
     return true;
   }
 
+  if (planOperator === PUBLIC_NETWORK_OPERATOR) {
+    return (
+      !planCategory &&
+      hospital.classificacaoAdministrativa === "Público" &&
+      (!hospital.planos || hospital.planos.length === 0)
+    );
+  }
+
   return hospital.planos?.some((plan) => {
     const matchesOperator =
       !planOperator || getPlanOperatorName(plan) === planOperator;
@@ -90,6 +100,10 @@ function hospitalMatchesQuery(hospital: Hospital, query: string) {
       hospital.esferaAdministrativa,
       hospital.naturezaJuridica,
       hospital.classificacaoAdministrativa,
+      hospital.classificacaoAdministrativa === "Público" &&
+      (!hospital.planos || hospital.planos.length === 0)
+        ? PUBLIC_NETWORK_OPERATOR
+        : undefined,
       ...(hospital.planos ?? []).map(getPlanSearchText),
       ...(hospital.especialidades ?? []).map((specialty) => specialty.nome),
     ].join(" ")
@@ -112,6 +126,19 @@ export function filterHospitals(
 
 export function getLinkedPlans(hospitals: Hospital[]) {
   const plansByOperatorName = new Map<string, HealthPlan>();
+
+  if (
+    hospitals.some(
+      (hospital) =>
+        hospital.classificacaoAdministrativa === "Público" &&
+        (!hospital.planos || hospital.planos.length === 0)
+    )
+  ) {
+    plansByOperatorName.set(PUBLIC_NETWORK_OPERATOR, {
+      id: -1,
+      nome: PUBLIC_NETWORK_OPERATOR,
+    });
+  }
 
   hospitals.forEach((hospital) => {
     hospital.planos?.forEach((plan) => {
@@ -136,6 +163,10 @@ export function getPlanCategoriesForOperator(
   planOperator: string
 ) {
   if (!planOperator) {
+    return [];
+  }
+
+  if (planOperator === PUBLIC_NETWORK_OPERATOR) {
     return [];
   }
 

@@ -138,10 +138,12 @@ function HospitalPopup({ hospital }: { hospital: Hospital }) {
     hospital.classificacaoAdministrativa !== "Indefinido"
       ? hospital.classificacaoAdministrativa
       : undefined;
-  const emptyPlanLabel =
-    hospital.classificacaoAdministrativa === "Público"
-      ? "Sem convênios privados na base ANS"
-      : "Sem planos vinculados na base ANS";
+  const isPublicNetwork =
+    hospital.classificacaoAdministrativa === "Público" &&
+    planDisplay.totalCount === 0;
+  const emptyPlanLabel = isPublicNetwork
+    ? "Rede Pública"
+    : "Sem planos vinculados na base ANS";
   const officialBadges = [
     ownershipLabel,
     hospital.tipoUnidade,
