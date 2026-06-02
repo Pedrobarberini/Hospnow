@@ -2,6 +2,7 @@ package com.hospnow.service;
 
 import com.hospnow.entity.Hospital;
 import com.hospnow.repository.HospitalRepository;
+import com.hospnow.util.HospitalSpecialtyCatalog;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -118,6 +119,9 @@ public class HospitalService {
         if (hospital.getEspecialidades() != null) {
             hospital.getEspecialidades().forEach(specialty -> appendSearchText(searchableText, specialty.getNome()));
         }
+
+        HospitalSpecialtyCatalog.specialtyNamesFor(hospital)
+                .forEach(specialtyName -> appendSearchText(searchableText, specialtyName));
 
         String normalizedText = normalizeSearchText(searchableText.toString());
         return terms.stream().allMatch(normalizedText::contains);

@@ -7,6 +7,7 @@ import com.hospnow.entity.Specialty;
 import com.hospnow.repository.HealthPlanRepository;
 import com.hospnow.repository.HospitalRepository;
 import com.hospnow.repository.SpecialtyRepository;
+import com.hospnow.util.HospitalSpecialtyCatalog;
 import com.hospnow.util.PlanCategoryCatalog;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -96,8 +97,6 @@ public class OfficialDataImportService {
                 municipalityCode,
                 new Municipality("Municipio " + municipalityCode, "SP", 35)
         );
-        Specialty hospitalCare = findOrCreateSpecialty("Atendimento hospitalar");
-
         int scannedRows = 0;
         int importedHospitals = 0;
         int skippedRows = 0;
@@ -122,7 +121,7 @@ public class OfficialDataImportService {
                         continue;
                     }
 
-                    upsertHospital(establishment, municipality, UNIT_TYPES.get(unitType), hospitalCare);
+                    upsertHospital(establishment, municipality, UNIT_TYPES.get(unitType));
                     importedHospitals++;
                 }
             }
@@ -239,7 +238,13 @@ public class OfficialDataImportService {
                     doubleField(establishment, "longitude_estabelecimento_decimo_grau"),
                     textField(establishment, "numero_cnpj"),
                     integerField(establishment, "codigo_municipio"),
-                    textField(establishment, "data_atualizacao")
+                    textField(establishment, "data_atualizacao"),
+                    integerField(establishment, "estabelecimento_possui_centro_cirurgico"),
+                    integerField(establishment, "estabelecimento_possui_centro_obstetrico"),
+                    integerField(establishment, "estabelecimento_possui_centro_neonatal"),
+                    integerField(establishment, "estabelecimento_possui_atendimento_hospitalar"),
+                    integerField(establishment, "estabelecimento_possui_servico_apoio"),
+                    textField(establishment, "estabelecimento_faz_atendimento_ambulatorial_sus")
             ));
         }
 
@@ -249,8 +254,7 @@ public class OfficialDataImportService {
     private void upsertHospital(
             CnesEstablishment establishment,
             Municipality municipality,
-            String unitType,
-            Specialty hospitalCare
+            String unitType
     ) {
         String codigoCnes = String.valueOf(establishment.codigoCnes());
         Hospital hospital = hospitalRepository.findByCodigoCnes(codigoCnes)
@@ -273,9 +277,30 @@ public class OfficialDataImportService {
         hospital.setTipoUnidade(unitType);
         hospital.setFonteDados("CNES");
         hospital.setDataAtualizacaoFonte(parseDate(establishment.dataAtualizacao()));
-        addSpecialty(hospital, hospitalCare);
+        addOfficialSpecialties(hospital, establishment);
 
         hospitalRepository.save(hospital);
+    }
+
+    private void addOfficialSpecialties(Hospital hospital, CnesEstablishment establishment) {
+        HospitalSpecialtyCatalog.Capabilities capabilities = new HospitalSpecialtyCatalog.Capabilities(
+                isEnabled(establishment.possuiCentroCirurgico()),
+                isEnabled(establishment.possuiCentroObstetrico()),
+                isEnabled(establishment.possuiCentroNeonatal()),
+                isEnabled(establishment.possuiAtendimentoHospitalar()),
+                isEnabled(establishment.possuiServicoApoio()),
+                sameText(establishment.fazAtendimentoAmbulatorialSus(), "SIM")
+        );
+
+        HospitalSpecialtyCatalog.specialtyNamesFor(
+                        hospital.getCodigoCnes(),
+                        hospital.getNome(),
+                        hospital.getTipoUnidade(),
+                        capabilities
+                )
+                .stream()
+                .map(this::findOrCreateSpecialty)
+                .forEach(specialty -> addSpecialty(hospital, specialty));
     }
 
     private HealthPlan upsertAnsPlan(
@@ -888,6 +913,10 @@ public class OfficialDataImportService {
         return first != null && second != null && first.equalsIgnoreCase(second);
     }
 
+    private static boolean isEnabled(Integer value) {
+        return value != null && value == 1;
+    }
+
     private static char detectDelimiter(String headerLine) {
         long semicolons = headerLine.chars().filter(character -> character == ';').count();
         long commas = headerLine.chars().filter(character -> character == ',').count();
@@ -1028,7 +1057,13 @@ public class OfficialDataImportService {
             Double longitude,
             String numeroCnpj,
             Integer codigoMunicipio,
-            String dataAtualizacao
+            String dataAtualizacao,
+            Integer possuiCentroCirurgico,
+            Integer possuiCentroObstetrico,
+            Integer possuiCentroNeonatal,
+            Integer possuiAtendimentoHospitalar,
+            Integer possuiServicoApoio,
+            String fazAtendimentoAmbulatorialSus
     ) {
     }
 }

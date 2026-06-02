@@ -1,11 +1,13 @@
 package com.hospnow.dto;
 
 import com.hospnow.entity.Hospital;
+import com.hospnow.util.HospitalSpecialtyCatalog;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public record HospitalResponse(
@@ -69,12 +71,34 @@ public record HospitalResponse(
     }
 
     private static List<SpecialtyResponse> specialties(Hospital hospital) {
+        Map<String, SpecialtyResponse> specialtiesByName = new LinkedHashMap<>();
+
         if (hospital.getEspecialidades() == null) {
-            return new ArrayList<>();
+            HospitalSpecialtyCatalog.specialtyNamesFor(hospital)
+                    .forEach(name -> specialtiesByName.putIfAbsent(
+                            specialtyKey(name),
+                            new SpecialtyResponse(null, name)
+                    ));
+            return new ArrayList<>(specialtiesByName.values());
         }
 
-        return hospital.getEspecialidades().stream()
+        hospital.getEspecialidades().stream()
                 .map(SpecialtyResponse::from)
-                .toList();
+                .forEach(specialty -> specialtiesByName.putIfAbsent(
+                        specialtyKey(specialty.nome()),
+                        specialty
+                ));
+
+        HospitalSpecialtyCatalog.specialtyNamesFor(hospital)
+                .forEach(name -> specialtiesByName.putIfAbsent(
+                        specialtyKey(name),
+                        new SpecialtyResponse(null, name)
+                ));
+
+        return new ArrayList<>(specialtiesByName.values());
+    }
+
+    private static String specialtyKey(String value) {
+        return value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
     }
 }

@@ -6,29 +6,18 @@ import com.hospnow.entity.Specialty;
 import com.hospnow.repository.HealthPlanRepository;
 import com.hospnow.repository.HospitalRepository;
 import com.hospnow.repository.SpecialtyRepository;
+import com.hospnow.util.HospitalSpecialtyCatalog;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 
 @Component
 public class OfficialDataCleanupRunner implements CommandLineRunner {
-
-    private static final Set<String> LEGACY_SPECIALTIES = Set.of(
-            "PRONTO ATENDIMENTO",
-            "PEDIATRIA",
-            "CARDIOLOGIA",
-            "ORTOPEDIA",
-            "GINECOLOGIA",
-            "DERMATOLOGIA",
-            "EXAMES LABORATORIAIS"
-    );
 
     private final boolean cleanupDemoRecords;
     private final HealthPlanRepository healthPlanRepository;
@@ -50,13 +39,12 @@ public class OfficialDataCleanupRunner implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        if (!cleanupDemoRecords) {
-            return;
+        if (cleanupDemoRecords) {
+            removeNonOfficialHospitals();
+            removeLegacyManualPlans();
         }
 
-        removeNonOfficialHospitals();
-        removeLegacyManualPlans();
-        removeLegacySpecialties();
+        applyOfficialSpecialtyCatalog();
     }
 
     private void removeNonOfficialHospitals() {
@@ -106,41 +94,43 @@ public class OfficialDataCleanupRunner implements CommandLineRunner {
         }
     }
 
-    private void removeLegacySpecialties() {
-        List<Specialty> legacySpecialties = specialtyRepository.findAll().stream()
-                .filter(specialty -> LEGACY_SPECIALTIES.contains(normalizeForComparison(specialty.getNome())))
-                .toList();
+    private void applyOfficialSpecialtyCatalog() {
+        hospitalRepository.findAll().stream()
+                .filter(hospital -> !isBlank(hospital.getCodigoCnes()))
+                .filter(hospital -> sameText(hospital.getFonteDados(), "CNES"))
+                .forEach(hospital -> {
+                    List<Specialty> specialties = hospital.getEspecialidades() == null
+                            ? new ArrayList<>()
+                            : new ArrayList<>(hospital.getEspecialidades());
+                    boolean changed = false;
 
-        if (!legacySpecialties.isEmpty()) {
-            Set<Long> legacySpecialtyIds = legacySpecialties.stream()
-                    .map(Specialty::getId)
-                    .collect(java.util.stream.Collectors.toSet());
+                    for (String specialtyName : HospitalSpecialtyCatalog.specialtyNamesFor(hospital)) {
+                        if (hasSpecialty(specialties, specialtyName)) {
+                            continue;
+                        }
 
-            hospitalRepository.findAll().forEach(hospital -> {
-                if (hospital.getEspecialidades() == null) {
-                    return;
-                }
+                        specialties.add(findOrCreateSpecialty(specialtyName));
+                        changed = true;
+                    }
 
-                List<Specialty> retainedSpecialties = hospital.getEspecialidades().stream()
-                        .filter(specialty -> specialty.getId() == null || !legacySpecialtyIds.contains(specialty.getId()))
-                        .toList();
-
-                if (retainedSpecialties.size() != hospital.getEspecialidades().size()) {
-                    hospital.setEspecialidades(new ArrayList<>(retainedSpecialties));
-                    hospitalRepository.save(hospital);
-                }
-            });
-            hospitalRepository.flush();
-            specialtyRepository.deleteAll(legacySpecialties);
-            specialtyRepository.flush();
-        }
+                    if (changed) {
+                        hospital.setEspecialidades(specialties);
+                        hospitalRepository.save(hospital);
+                    }
+                });
     }
 
-    private static String normalizeForComparison(String value) {
-        return Normalizer.normalize(value == null ? "" : value, Normalizer.Form.NFD)
-                .replaceAll("\\p{M}", "")
-                .toUpperCase(Locale.ROOT)
-                .trim();
+    private Specialty findOrCreateSpecialty(String name) {
+        return specialtyRepository.findByNomeIgnoreCase(name)
+                .orElseGet(() -> {
+                    Specialty specialty = new Specialty();
+                    specialty.setNome(name);
+                    return specialtyRepository.save(specialty);
+                });
+    }
+
+    private static boolean hasSpecialty(List<Specialty> specialties, String name) {
+        return specialties.stream().anyMatch(specialty -> sameText(specialty.getNome(), name));
     }
 
     private static boolean sameText(String first, String second) {

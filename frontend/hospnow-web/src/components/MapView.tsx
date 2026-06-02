@@ -1,4 +1,4 @@
-import { useEffect, useRef, type Ref } from "react";
+import { useEffect, useMemo, useRef, useState, type Ref } from "react";
 import {
   CircleMarker,
   MapContainer,
@@ -194,6 +194,72 @@ function SelectedHospitalMarker({ hospital }: { hospital: Hospital }) {
   );
 }
 
+function ViewportHospitalMarkers({
+  hospitals,
+  selectedHospital,
+}: {
+  hospitals: Hospital[];
+  selectedHospital?: Hospital;
+}) {
+  const map = useMap();
+  const [renderBounds, setRenderBounds] = useState<L.LatLngBounds | null>(null);
+
+  useEffect(() => {
+    function updateRenderBounds() {
+      setRenderBounds(map.getBounds());
+    }
+
+    updateRenderBounds();
+    map.on("moveend zoomend resize", updateRenderBounds);
+
+    return () => {
+      map.off("moveend zoomend resize", updateRenderBounds);
+    };
+  }, [map]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setRenderBounds(map.getBounds());
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [hospitals, map]);
+
+  const renderedHospitals = useMemo(() => {
+    if (!renderBounds) {
+      return [];
+    }
+
+    const paddedBounds = renderBounds.pad(0.18);
+
+    return hospitals.filter((hospital) => {
+      if (hospital.id === selectedHospital?.id) {
+        return false;
+      }
+
+      return paddedBounds.contains([hospital.latitude, hospital.longitude]);
+    });
+  }, [hospitals, renderBounds, selectedHospital?.id]);
+
+  return (
+    <>
+      {renderedHospitals.map((hospital) => (
+        <Marker
+          icon={markerIcon}
+          key={hospital.id}
+          position={[hospital.latitude, hospital.longitude]}
+        >
+          <Popup>
+            <HospitalPopup hospital={hospital} />
+          </Popup>
+        </Marker>
+      ))}
+
+      {selectedHospital && <SelectedHospitalMarker hospital={selectedHospital} />}
+    </>
+  );
+}
+
 export function MapView({
   addressInput = "",
   containerRef,
@@ -306,23 +372,10 @@ export function MapView({
             </CircleMarker>
           )}
 
-          {visibleHospitals
-            .filter((hospital) => hospital.id !== selectedHospital?.id)
-            .map((hospital) => (
-              <Marker
-                icon={markerIcon}
-                key={hospital.id}
-                position={[hospital.latitude, hospital.longitude]}
-              >
-                <Popup>
-                  <HospitalPopup hospital={hospital} />
-                </Popup>
-              </Marker>
-            ))}
-
-          {selectedHospital && (
-            <SelectedHospitalMarker hospital={selectedHospital} />
-          )}
+          <ViewportHospitalMarkers
+            hospitals={visibleHospitals}
+            selectedHospital={selectedHospital}
+          />
         </MapContainer>
       </div>
     </section>
