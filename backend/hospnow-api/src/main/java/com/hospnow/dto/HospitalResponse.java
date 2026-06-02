@@ -84,6 +84,8 @@ public record HospitalResponse(
 
         if (hospital.getEspecialidades() == null) {
             HospitalSpecialtyCatalog.specialtyNamesFor(hospital)
+                    .stream()
+                    .filter(HospitalResponse::isDisplayableSpecialty)
                     .forEach(name -> specialtiesByName.putIfAbsent(
                             specialtyKey(name),
                             new SpecialtyResponse(null, name)
@@ -93,12 +95,15 @@ public record HospitalResponse(
 
         hospital.getEspecialidades().stream()
                 .map(SpecialtyResponse::from)
+                .filter(specialty -> isDisplayableSpecialty(specialty.nome()))
                 .forEach(specialty -> specialtiesByName.putIfAbsent(
                         specialtyKey(specialty.nome()),
                         specialty
                 ));
 
         HospitalSpecialtyCatalog.specialtyNamesFor(hospital)
+                .stream()
+                .filter(HospitalResponse::isDisplayableSpecialty)
                 .forEach(name -> specialtiesByName.putIfAbsent(
                         specialtyKey(name),
                         new SpecialtyResponse(null, name)
@@ -109,5 +114,9 @@ public record HospitalResponse(
 
     private static String specialtyKey(String value) {
         return value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private static boolean isDisplayableSpecialty(String value) {
+        return !specialtyKey(value).equals("ATENDIMENTO HOSPITALAR");
     }
 }

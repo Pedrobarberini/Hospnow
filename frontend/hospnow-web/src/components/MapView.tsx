@@ -10,6 +10,7 @@ import {
 import L from "leaflet";
 import type { Hospital } from "../types/Hospital";
 import { getLimitedPlanDisplay } from "../utils/planDisplay";
+import { getLimitedSpecialtyDisplay } from "../utils/specialtyDisplay";
 import "leaflet/dist/leaflet.css";
 
 interface MapViewProps {
@@ -128,8 +129,10 @@ function FocusSelectedHospital({ hospital }: { hospital?: Hospital }) {
 
 function HospitalPopup({ hospital }: { hospital: Hospital }) {
   const planDisplay = getLimitedPlanDisplay(hospital.planos, 5);
-  const specialtyNames =
-    hospital.especialidades?.map((specialty) => specialty.nome) ?? [];
+  const specialtyDisplay = getLimitedSpecialtyDisplay(
+    hospital.especialidades,
+    5
+  );
   const ownershipLabel =
     hospital.classificacaoAdministrativa &&
     hospital.classificacaoAdministrativa !== "Indefinido"
@@ -140,10 +143,8 @@ function HospitalPopup({ hospital }: { hospital: Hospital }) {
       ? "Sem convênios privados na base ANS"
       : "Sem planos vinculados na base ANS";
   const officialBadges = [
-    hospital.codigoCnes ? `CNES ${hospital.codigoCnes}` : undefined,
     ownershipLabel,
     hospital.tipoUnidade,
-    hospital.fonteDados ? `Fonte ${hospital.fonteDados}` : undefined,
   ].filter(Boolean) as string[];
 
   return (
@@ -177,9 +178,12 @@ function HospitalPopup({ hospital }: { hospital: Hospital }) {
         ) : (
           <small>{emptyPlanLabel}</small>
         )}
-        {specialtyNames.map((specialtyName) => (
+        {specialtyDisplay.names.map((specialtyName) => (
           <small key={specialtyName}>{specialtyName}</small>
         ))}
+        {specialtyDisplay.hiddenCount > 0 && (
+          <small>+ {specialtyDisplay.hiddenCount} especialidades</small>
+        )}
       </div>
     </div>
   );

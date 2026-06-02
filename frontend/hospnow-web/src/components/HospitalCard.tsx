@@ -1,6 +1,7 @@
 import type { KeyboardEvent } from "react";
 import type { Hospital } from "../types/Hospital";
 import { getLimitedPlanDisplay } from "../utils/planDisplay";
+import { getLimitedSpecialtyDisplay } from "../utils/specialtyDisplay";
 
 interface HospitalCardProps {
   hospital: Hospital;
@@ -16,8 +17,10 @@ export function HospitalCard({
   onSelect,
 }: HospitalCardProps) {
   const planDisplay = getLimitedPlanDisplay(hospital.planos, 6);
-  const specialtyNames =
-    hospital.especialidades?.map((specialty) => specialty.nome) ?? [];
+  const specialtyDisplay = getLimitedSpecialtyDisplay(
+    hospital.especialidades,
+    5
+  );
   const hospitalName = hospital.nome || "Hospital sem nome cadastrado";
   const cityLabel = [hospital.cidade, hospital.uf].filter(Boolean).join(" - ");
   const ownershipLabel =
@@ -27,14 +30,12 @@ export function HospitalCard({
       : undefined;
   const emptyPlanLabel =
     hospital.classificacaoAdministrativa === "Público"
-      ? "Público"
+      ? "Sem convênios privados na base ANS"
       : "Sem planos vinculados na base ANS";
   const officialBadges = [
-    hospital.codigoCnes ? `CNES ${hospital.codigoCnes}` : undefined,
     ownershipLabel,
     hospital.tipoUnidade,
     cityLabel || undefined,
-    hospital.fonteDados ? `Fonte ${hospital.fonteDados}` : undefined,
   ].filter(Boolean) as string[];
 
   function handleKeyDown(event: KeyboardEvent<HTMLElement>) {
@@ -111,12 +112,17 @@ export function HospitalCard({
       </div>
 
       <div className="hospital-card__specialties" aria-label="Especialidades">
-        {specialtyNames.length > 0 ? (
-          specialtyNames.map((specialtyName) => (
-            <span key={specialtyName}>{specialtyName}</span>
-          ))
+        {specialtyDisplay.totalCount > 0 ? (
+          <>
+            {specialtyDisplay.names.map((specialtyName) => (
+              <span key={specialtyName}>{specialtyName}</span>
+            ))}
+            {specialtyDisplay.hiddenCount > 0 && (
+              <span>+ {specialtyDisplay.hiddenCount} especialidades</span>
+            )}
+          </>
         ) : (
-          <span>Sem especialidades cadastradas</span>
+          <span>Sem especialidades diferenciadas</span>
         )}
       </div>
     </article>

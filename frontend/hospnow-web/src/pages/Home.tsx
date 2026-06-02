@@ -441,6 +441,21 @@ export function Home() {
           )
         )}
       </section>
+
+      <footer className="home__footer" aria-label="Fontes dos dados">
+        <div>
+          <strong>Fontes dos dados</strong>
+          <p>
+            Utilizando API CNES para consulta nacional de hospitais e
+            especialidades.
+          </p>
+          <p>
+            Utilizando dados abertos da ANS para consulta de planos de saúde e
+            vínculos hospitalares.
+          </p>
+          <p>Mapas e busca de endereços com OpenStreetMap e Nominatim.</p>
+        </div>
+      </footer>
     </main>
   );
 }

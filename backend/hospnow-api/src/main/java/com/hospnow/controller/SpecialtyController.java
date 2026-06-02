@@ -36,15 +36,19 @@ public class SpecialtyController {
     public List<SpecialtyResponse> listar() {
         Map<String, SpecialtyResponse> specialtiesByName = new LinkedHashMap<>();
 
-        repository.findAll().forEach(specialty -> specialtiesByName.put(
-                specialtyKey(specialty.getNome()),
-                SpecialtyResponse.from(specialty)
-        ));
+        repository.findAll().stream()
+                .filter(specialty -> isDisplayableSpecialty(specialty.getNome()))
+                .forEach(specialty -> specialtiesByName.put(
+                        specialtyKey(specialty.getNome()),
+                        SpecialtyResponse.from(specialty)
+                ));
 
-        HospitalSpecialtyCatalog.allSpecialtyNames().forEach(name -> specialtiesByName.putIfAbsent(
-                specialtyKey(name),
-                new SpecialtyResponse(syntheticId(name), name)
-        ));
+        HospitalSpecialtyCatalog.allSpecialtyNames().stream()
+                .filter(SpecialtyController::isDisplayableSpecialty)
+                .forEach(name -> specialtiesByName.putIfAbsent(
+                        specialtyKey(name),
+                        new SpecialtyResponse(syntheticId(name), name)
+                ));
 
         Collator collator = Collator.getInstance(Locale.forLanguageTag("pt-BR"));
 
@@ -60,5 +64,9 @@ public class SpecialtyController {
     private static Long syntheticId(String value) {
         long hash = Math.abs((long) specialtyKey(value).hashCode());
         return hash == 0 ? -1L : -hash;
+    }
+
+    private static boolean isDisplayableSpecialty(String value) {
+        return !specialtyKey(value).equals("ATENDIMENTO HOSPITALAR");
     }
 }
