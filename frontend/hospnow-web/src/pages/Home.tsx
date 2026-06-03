@@ -194,6 +194,7 @@ export function Home() {
           longitude: position.coords.longitude,
         });
         setSortByDistance(true);
+        setSelectedHospitalId(null);
         setLocationMessage("Localização adicionada ao mapa.");
         setIsLocating(false);
       },
@@ -267,6 +268,7 @@ export function Home() {
         longitude: Number(result.lon),
       });
       setSortByDistance(true);
+      setSelectedHospitalId(null);
       setLocationMessage(`Endereço encontrado: ${result.display_name}`);
     } catch {
       setLocationMessage(
@@ -426,6 +428,7 @@ export function Home() {
               locationMessage={locationMessage}
               onAddressChange={setAddressInput}
               onAddressSubmit={handleAddressSubmit}
+              onHospitalSelect={handleHospitalSelect}
               onUseLocation={handleUseLocation}
               containerRef={mapViewRef}
               selectedHospitalId={selectedHospitalId}

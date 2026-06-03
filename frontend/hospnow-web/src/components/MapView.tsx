@@ -3,12 +3,17 @@ import {
   CircleMarker,
   MapContainer,
   Marker,
+  Polyline,
   Popup,
   TileLayer,
   useMap,
 } from "react-leaflet";
 import L from "leaflet";
 import type { Hospital } from "../types/Hospital";
+import {
+  getGoogleMapsDirectionsUrl,
+  getGoogleMapsPlaceUrl,
+} from "../utils/mapLinks";
 import { getLimitedPlanDisplay } from "../utils/planDisplay";
 import { getLimitedSpecialtyDisplay } from "../utils/specialtyDisplay";
 import "leaflet/dist/leaflet.css";
@@ -22,6 +27,7 @@ interface MapViewProps {
   locationMessage?: string;
   onAddressChange?: (address: string) => void;
   onAddressSubmit?: () => void;
+  onHospitalSelect?: (hospital: Hospital) => void;
   onUseLocation?: () => void;
   selectedHospitalId?: number | null;
   userLocation?: UserLocation | null;
@@ -50,6 +56,12 @@ const selectedMarkerIcon = L.divIcon({
   popupAnchor: [0, -40],
 });
 
+interface RouteState {
+  distanceInKm: number;
+  durationInMinutes: number;
+  path: [number, number][];
+}
+
 function isValidCoordinate(hospital: Hospital) {
   return (
     Number.isFinite(hospital.latitude) &&
@@ -69,15 +81,16 @@ function MapBounds({
       return;
     }
 
+    if (userLocation) {
+      map.setView([userLocation.latitude, userLocation.longitude], 13);
+      return;
+    }
+
     const visibleHospitals = hospitals.filter(isValidCoordinate);
     const points = visibleHospitals.map((hospital) => [
       hospital.latitude,
       hospital.longitude,
     ]) as [number, number][];
-
-    if (userLocation) {
-      points.push([userLocation.latitude, userLocation.longitude]);
-    }
 
     if (points.length === 1) {
       map.setView(points[0], 14);
@@ -88,6 +101,27 @@ function MapBounds({
       map.fitBounds(bounds, { padding: [36, 36], maxZoom: 14 });
     }
   }, [hospitals, map, selectedHospitalId, userLocation]);
+
+  return null;
+}
+
+function RouteFocus({ route }: { route: RouteState | null }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!route || route.path.length < 2) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      map.fitBounds(L.latLngBounds(route.path), {
+        padding: [44, 44],
+        maxZoom: 15,
+      });
+    }, 120);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [map, route]);
 
   return null;
 }
@@ -127,7 +161,15 @@ function FocusSelectedHospital({ hospital }: { hospital?: Hospital }) {
   return null;
 }
 
-function HospitalPopup({ hospital }: { hospital: Hospital }) {
+function HospitalPopup({
+  googleMapsUrl,
+  hospital,
+  route,
+}: {
+  googleMapsUrl?: string;
+  hospital: Hospital;
+  route?: RouteState | null;
+}) {
   const planDisplay = getLimitedPlanDisplay(hospital.planos, 5);
   const specialtyDisplay = getLimitedSpecialtyDisplay(
     hospital.especialidades,
@@ -187,11 +229,35 @@ function HospitalPopup({ hospital }: { hospital: Hospital }) {
           <small>+ {specialtyDisplay.hiddenCount} especialidades</small>
         )}
       </div>
+      <div className="hospital-popup__actions">
+        {googleMapsUrl && (
+          <a href={googleMapsUrl} rel="noreferrer" target="_blank">
+            Abrir rota no Google Maps
+          </a>
+        )}
+        <a href={getGoogleMapsPlaceUrl(hospital)} rel="noreferrer" target="_blank">
+          Ver avaliações no Google
+        </a>
+      </div>
+      {route && (
+        <p className="hospital-popup__route">
+          {route.distanceInKm.toFixed(1)} km •{" "}
+          {Math.round(route.durationInMinutes)} min
+        </p>
+      )}
     </div>
   );
 }
 
-function SelectedHospitalMarker({ hospital }: { hospital: Hospital }) {
+function SelectedHospitalMarker({
+  googleMapsUrl,
+  hospital,
+  route,
+}: {
+  googleMapsUrl?: string;
+  hospital: Hospital;
+  route: RouteState | null;
+}) {
   const markerRef = useRef<L.Marker | null>(null);
 
   useEffect(() => {
@@ -210,7 +276,11 @@ function SelectedHospitalMarker({ hospital }: { hospital: Hospital }) {
       zIndexOffset={1000}
     >
       <Popup autoPan={false}>
-        <HospitalPopup hospital={hospital} />
+        <HospitalPopup
+          googleMapsUrl={googleMapsUrl}
+          hospital={hospital}
+          route={route}
+        />
       </Popup>
     </Marker>
   );
@@ -218,9 +288,11 @@ function SelectedHospitalMarker({ hospital }: { hospital: Hospital }) {
 
 function ViewportHospitalMarkers({
   hospitals,
+  onHospitalSelect,
   selectedHospital,
 }: {
   hospitals: Hospital[];
+  onHospitalSelect?: (hospital: Hospital) => void;
   selectedHospital?: Hospital;
 }) {
   const map = useMap();
@@ -270,14 +342,15 @@ function ViewportHospitalMarkers({
           icon={markerIcon}
           key={hospital.id}
           position={[hospital.latitude, hospital.longitude]}
+          eventHandlers={{
+            click: () => onHospitalSelect?.(hospital),
+          }}
         >
           <Popup>
             <HospitalPopup hospital={hospital} />
           </Popup>
         </Marker>
       ))}
-
-      {selectedHospital && <SelectedHospitalMarker hospital={selectedHospital} />}
     </>
   );
 }
@@ -291,20 +364,96 @@ export function MapView({
   locationMessage,
   onAddressChange,
   onAddressSubmit,
+  onHospitalSelect,
   onUseLocation,
   selectedHospitalId,
   userLocation,
 }: MapViewProps) {
+  const [route, setRoute] = useState<RouteState | null>(null);
+  const [routeStatus, setRouteStatus] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
   const visibleHospitals = hospitals.filter(isValidCoordinate);
   const selectedHospital = visibleHospitals.find(
     (hospital) => hospital.id === selectedHospitalId
   );
+  const googleMapsRouteUrl =
+    userLocation && selectedHospital
+      ? getGoogleMapsDirectionsUrl(userLocation, selectedHospital)
+      : undefined;
   const center =
     userLocation
       ? [userLocation.latitude, userLocation.longitude]
       : visibleHospitals.length > 0
       ? [visibleHospitals[0].latitude, visibleHospitals[0].longitude]
       : defaultCenter;
+
+  useEffect(() => {
+    if (!userLocation || !selectedHospital || !isValidCoordinate(selectedHospital)) {
+      setRoute(null);
+      setRouteStatus("idle");
+      return;
+    }
+
+    const controller = new AbortController();
+    const routeUrl =
+      "https://router.project-osrm.org/route/v1/driving/" +
+      `${userLocation.longitude},${userLocation.latitude};` +
+      `${selectedHospital.longitude},${selectedHospital.latitude}` +
+      "?overview=full&geometries=geojson&steps=false&alternatives=false";
+
+    async function loadRoute() {
+      try {
+        setRouteStatus("loading");
+        setRoute(null);
+
+        const response = await fetch(routeUrl, {
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error("Route request failed");
+        }
+
+        const data = (await response.json()) as {
+          routes?: Array<{
+            distance: number;
+            duration: number;
+            geometry?: {
+              coordinates?: Array<[number, number]>;
+            };
+          }>;
+        };
+        const firstRoute = data.routes?.[0];
+        const coordinates = firstRoute?.geometry?.coordinates ?? [];
+
+        if (!firstRoute || coordinates.length < 2) {
+          throw new Error("Route not found");
+        }
+
+        setRoute({
+          distanceInKm: firstRoute.distance / 1000,
+          durationInMinutes: firstRoute.duration / 60,
+          path: coordinates.map(([longitude, latitude]) => [
+            latitude,
+            longitude,
+          ]),
+        });
+        setRouteStatus("ready");
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setRoute(null);
+        setRouteStatus("error");
+      }
+    }
+
+    loadRoute();
+
+    return () => controller.abort();
+  }, [selectedHospital, userLocation]);
 
   return (
     <section
@@ -334,6 +483,42 @@ export function MapView({
 
       {locationMessage && (
         <p className="map-view__location-message">{locationMessage}</p>
+      )}
+
+      {selectedHospital && (
+        <div className="map-view__route-panel">
+          <div>
+            <strong>{selectedHospital.nome || "Hospital selecionado"}</strong>
+            <span>
+              {!userLocation
+                ? "Informe sua localização para traçar a rota."
+                : routeStatus === "loading"
+                  ? "Calculando rota..."
+                  : routeStatus === "error"
+                    ? "Não foi possível calcular a rota agora."
+                    : route
+                      ? `${route.distanceInKm.toFixed(1)} km • ${Math.round(
+                          route.durationInMinutes
+                        )} min de carro`
+                      : "Hospital selecionado no mapa."}
+            </span>
+          </div>
+          <div className="map-view__route-actions">
+            {googleMapsRouteUrl && (
+              <a href={googleMapsRouteUrl} rel="noreferrer" target="_blank">
+                <span aria-hidden="true">↗</span>
+                Google Maps
+              </a>
+            )}
+            <a
+              href={getGoogleMapsPlaceUrl(selectedHospital)}
+              rel="noreferrer"
+              target="_blank"
+            >
+              Avaliações
+            </a>
+          </div>
+        </div>
       )}
 
       {onAddressChange && onAddressSubmit && (
@@ -379,6 +564,7 @@ export function MapView({
             userLocation={userLocation}
           />
           <FocusSelectedHospital hospital={selectedHospital} />
+          <RouteFocus route={route} />
 
           {userLocation && (
             <CircleMarker
@@ -394,10 +580,30 @@ export function MapView({
             </CircleMarker>
           )}
 
+          {route && (
+            <Polyline
+              pathOptions={{
+                color: "#e30613",
+                opacity: 0.86,
+                weight: 5,
+              }}
+              positions={route.path}
+            />
+          )}
+
           <ViewportHospitalMarkers
             hospitals={visibleHospitals}
+            onHospitalSelect={onHospitalSelect}
             selectedHospital={selectedHospital}
           />
+
+          {selectedHospital && (
+            <SelectedHospitalMarker
+              googleMapsUrl={googleMapsRouteUrl}
+              hospital={selectedHospital}
+              route={route}
+            />
+          )}
         </MapContainer>
       </div>
     </section>
