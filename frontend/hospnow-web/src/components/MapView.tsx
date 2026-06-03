@@ -114,8 +114,13 @@ function RouteFocus({ route }: { route: RouteState | null }) {
     }
 
     const timeoutId = window.setTimeout(() => {
+      const mapSize = map.getSize();
+      const sidePadding = Math.min(mapSize.x * 0.08, 72);
+      const topPadding = Math.min(mapSize.y * 0.28, 180);
+
       map.fitBounds(L.latLngBounds(route.path), {
-        padding: [44, 44],
+        paddingBottomRight: [sidePadding, 60],
+        paddingTopLeft: [sidePadding, topPadding],
         maxZoom: 15,
       });
     }, 120);
@@ -138,7 +143,10 @@ function FocusSelectedHospital({ hospital }: { hospital?: Hospital }) {
       const selectedZoom = 16;
       const hospitalPosition = L.latLng(hospital.latitude, hospital.longitude);
       const isMobile = window.matchMedia("(max-width: 920px)").matches;
-      const popupOffset = isMobile ? Math.min(map.getSize().y * 0.16, 86) : 0;
+      const mapHeight = map.getSize().y;
+      const popupOffset = isMobile
+        ? Math.min(mapHeight * 0.18, 96)
+        : Math.min(mapHeight * 0.26, 150);
       const centeredPosition =
         popupOffset > 0
           ? map.unproject(
@@ -288,7 +296,12 @@ function SelectedHospitalMarker({
       ref={markerRef}
       zIndexOffset={1000}
     >
-      <Popup autoPan={false}>
+      <Popup
+        autoPan
+        autoPanPaddingBottomRight={[24, 24]}
+        autoPanPaddingTopLeft={[24, 96]}
+        keepInView
+      >
         <HospitalPopup
           googleMapsUrl={googleMapsUrl}
           hospital={hospital}
