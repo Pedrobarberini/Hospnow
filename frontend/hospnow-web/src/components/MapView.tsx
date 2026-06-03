@@ -131,6 +131,37 @@ function RouteFocus({ route }: { route: RouteState | null }) {
   return null;
 }
 
+function MapInteractionLock({ isLocked }: { isLocked: boolean }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const handlers = [
+      map.dragging,
+      map.touchZoom,
+      map.doubleClickZoom,
+      map.boxZoom,
+      map.keyboard,
+      map.scrollWheelZoom,
+    ];
+
+    handlers.forEach((handler) => {
+      if (isLocked) {
+        handler.disable();
+      } else {
+        handler.enable();
+      }
+    });
+
+    map.getContainer().classList.toggle("leaflet-container--locked", isLocked);
+
+    return () => {
+      map.getContainer().classList.remove("leaflet-container--locked");
+    };
+  }, [isLocked, map]);
+
+  return null;
+}
+
 function FocusSelectedHospital({ hospital }: { hospital?: Hospital }) {
   const map = useMap();
 
@@ -395,6 +426,7 @@ export function MapView({
   selectedHospitalId,
   userLocation,
 }: MapViewProps) {
+  const [isMapLocked, setIsMapLocked] = useState(true);
   const [route, setRoute] = useState<RouteState | null>(null);
   const [routeStatus, setRouteStatus] = useState<
     "idle" | "loading" | "ready" | "error"
@@ -504,6 +536,14 @@ export function MapView({
               {isLocating ? "Localizando..." : "Usar minha localização"}
             </button>
           )}
+          <button
+            aria-pressed={!isMapLocked}
+            className="map-view__lock-button"
+            type="button"
+            onClick={() => setIsMapLocked((current) => !current)}
+          >
+            {isMapLocked ? "Liberar mapa" : "Bloquear mapa"}
+          </button>
         </div>
       </div>
 
@@ -575,15 +615,22 @@ export function MapView({
 
       <div className="map-view__canvas">
         <MapContainer
+          boxZoom={!isMapLocked}
           center={center as [number, number]}
+          doubleClickZoom={!isMapLocked}
+          dragging={!isMapLocked}
+          keyboard={!isMapLocked}
+          scrollWheelZoom={!isMapLocked}
+          touchZoom={!isMapLocked}
           zoom={12}
-          scrollWheelZoom={false}
+          zoomControl={false}
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
+          <MapInteractionLock isLocked={isMapLocked} />
           <MapBounds
             hospitals={visibleHospitals}
             selectedHospitalId={selectedHospitalId}
