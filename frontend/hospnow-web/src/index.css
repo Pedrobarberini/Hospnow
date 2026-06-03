@@ -71,19 +71,6 @@ select:disabled {
     url("./assets/hero-hospnow.png") 58% center/cover;
 }
 
-.home__hero::after {
-  position: absolute;
-  z-index: 0;
-  right: clamp(20px, 5vw, 80px);
-  bottom: -70px;
-  width: min(34vw, 390px);
-  aspect-ratio: 1;
-  background: url("./assets/logo-hospnow.png") center/contain no-repeat;
-  content: "";
-  opacity: 0.11;
-  pointer-events: none;
-}
-
 .home__hero-content {
   position: relative;
   z-index: 1;
