@@ -105,6 +105,33 @@ function MapBounds({
   return null;
 }
 
+function RouteFocus({ route }: { route: RouteState | null }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!route || route.path.length < 2) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      const mapSize = map.getSize();
+      const sidePadding = Math.min(mapSize.x * 0.08, 80);
+      const verticalPadding = Math.min(mapSize.y * 0.14, 110);
+
+      map.invalidateSize();
+      map.fitBounds(L.latLngBounds(route.path), {
+        paddingBottomRight: [sidePadding, verticalPadding],
+        paddingTopLeft: [sidePadding, verticalPadding],
+        maxZoom: 14,
+      });
+    }, 420);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [map, route]);
+
+  return null;
+}
+
 function MapInteractionLock({ isLocked }: { isLocked: boolean }) {
   const map = useMap();
 
@@ -611,6 +638,7 @@ export function MapView({
             userLocation={userLocation}
           />
           <FocusSelectedHospital hospital={selectedHospital} />
+          <RouteFocus route={route} />
 
           {userLocation && (
             <CircleMarker
