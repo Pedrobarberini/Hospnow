@@ -298,7 +298,9 @@ export function Home() {
             geolocalização.
           </p>
         </div>
+      </section>
 
+      <section className="home__sticky-search" aria-label="Filtros de busca">
         <div className="home__search-panel">
           <SearchFilter
             searchTerm={searchTerm}

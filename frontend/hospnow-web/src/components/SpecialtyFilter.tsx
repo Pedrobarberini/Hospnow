@@ -16,18 +16,20 @@ export function SpecialtyFilter({
   return (
     <label className="plan-filter">
       <span>Especialidade</span>
-      <select
+      <input
+        list="specialty-options"
+        placeholder="Todas as especialidades"
         value={selectedSpecialty}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-      >
-        <option value="">Todas as especialidades</option>
+      />
+      <datalist id="specialty-options">
         {specialties.map((specialty) => (
           <option key={specialty.id} value={specialty.nome}>
             {specialty.nome}
           </option>
         ))}
-      </select>
+      </datalist>
     </label>
   );
 }

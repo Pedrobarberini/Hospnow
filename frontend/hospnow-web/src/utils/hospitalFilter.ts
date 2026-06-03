@@ -51,7 +51,14 @@ function hospitalMatchesPlan(
     return true;
   }
 
-  if (planOperator === PUBLIC_NETWORK_OPERATOR) {
+  const normalizedPlanOperator = normalizeSearchText(planOperator);
+  const normalizedPlanCategory = normalizeSearchText(planCategory);
+  const normalizedPublicOperator = normalizeSearchText(PUBLIC_NETWORK_OPERATOR);
+
+  if (
+    normalizedPlanOperator.length >= 3 &&
+    normalizedPublicOperator.includes(normalizedPlanOperator)
+  ) {
     return (
       !planCategory &&
       hospital.classificacaoAdministrativa === "Público" &&
@@ -60,10 +67,18 @@ function hospitalMatchesPlan(
   }
 
   return hospital.planos?.some((plan) => {
+    const operatorSearchText = normalizeSearchText(
+      `${getPlanOperatorName(plan)} ${getPlanSearchText(plan)}`
+    );
+    const categorySearchText = normalizeSearchText(
+      `${getPlanCategoryName(plan)} ${getPlanSearchText(plan)}`
+    );
     const matchesOperator =
-      !planOperator || getPlanOperatorName(plan) === planOperator;
+      !normalizedPlanOperator ||
+      operatorSearchText.includes(normalizedPlanOperator);
     const matchesCategory =
-      !planCategory || getPlanCategoryName(plan) === planCategory;
+      !normalizedPlanCategory ||
+      categorySearchText.includes(normalizedPlanCategory);
 
     return matchesOperator && matchesCategory;
   });
@@ -74,8 +89,10 @@ function hospitalMatchesSpecialty(hospital: Hospital, specialtyName: string) {
     return true;
   }
 
-  return hospital.especialidades?.some(
-    (specialty) => specialty.nome === specialtyName
+  const normalizedSpecialty = normalizeSearchText(specialtyName);
+
+  return hospital.especialidades?.some((specialty) =>
+    normalizeSearchText(specialty.nome).includes(normalizedSpecialty)
   );
 }
 
@@ -162,11 +179,12 @@ export function getPlanCategoriesForOperator(
   hospitals: Hospital[],
   planOperator: string
 ) {
-  if (!planOperator) {
-    return [];
-  }
+  const normalizedPlanOperator = normalizeSearchText(planOperator);
 
-  if (planOperator === PUBLIC_NETWORK_OPERATOR) {
+  if (
+    normalizedPlanOperator.length >= 3 &&
+    normalizeSearchText(PUBLIC_NETWORK_OPERATOR).includes(normalizedPlanOperator)
+  ) {
     return [];
   }
 
@@ -175,10 +193,14 @@ export function getPlanCategoriesForOperator(
   hospitals.forEach((hospital) => {
     hospital.planos?.forEach((plan) => {
       const category = getPlanCategoryName(plan);
+      const operatorSearchText = normalizeSearchText(
+        `${getPlanOperatorName(plan)} ${getPlanSearchText(plan)}`
+      );
 
       if (
         category &&
-        (!planOperator || getPlanOperatorName(plan) === planOperator)
+        (!normalizedPlanOperator ||
+          operatorSearchText.includes(normalizedPlanOperator))
       ) {
         categories.add(category);
       }
