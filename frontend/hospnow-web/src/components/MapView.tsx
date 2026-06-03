@@ -62,6 +62,51 @@ interface RouteState {
   path: [number, number][];
 }
 
+function getRouteMaxZoom(distanceInKm: number) {
+  if (distanceInKm <= 1.5) {
+    return 16;
+  }
+
+  if (distanceInKm <= 4) {
+    return 15;
+  }
+
+  if (distanceInKm <= 9) {
+    return 14;
+  }
+
+  if (distanceInKm <= 18) {
+    return 13;
+  }
+
+  if (distanceInKm <= 36) {
+    return 12;
+  }
+
+  return 11;
+}
+
+function getRoutePadding(distanceInKm: number, mapSize: L.Point) {
+  if (distanceInKm <= 4) {
+    return {
+      side: Math.min(mapSize.x * 0.04, 42),
+      vertical: Math.min(mapSize.y * 0.06, 46),
+    };
+  }
+
+  if (distanceInKm <= 12) {
+    return {
+      side: Math.min(mapSize.x * 0.06, 64),
+      vertical: Math.min(mapSize.y * 0.09, 72),
+    };
+  }
+
+  return {
+    side: Math.min(mapSize.x * 0.08, 86),
+    vertical: Math.min(mapSize.y * 0.12, 100),
+  };
+}
+
 function isValidCoordinate(hospital: Hospital) {
   return (
     Number.isFinite(hospital.latitude) &&
@@ -115,14 +160,13 @@ function RouteFocus({ route }: { route: RouteState | null }) {
 
     const timeoutId = window.setTimeout(() => {
       const mapSize = map.getSize();
-      const sidePadding = Math.min(mapSize.x * 0.08, 80);
-      const verticalPadding = Math.min(mapSize.y * 0.14, 110);
+      const routePadding = getRoutePadding(route.distanceInKm, mapSize);
 
       map.invalidateSize();
       map.fitBounds(L.latLngBounds(route.path), {
-        paddingBottomRight: [sidePadding, verticalPadding],
-        paddingTopLeft: [sidePadding, verticalPadding],
-        maxZoom: 14,
+        paddingBottomRight: [routePadding.side, routePadding.vertical],
+        paddingTopLeft: [routePadding.side, routePadding.vertical],
+        maxZoom: getRouteMaxZoom(route.distanceInKm),
       });
     }, 420);
 
