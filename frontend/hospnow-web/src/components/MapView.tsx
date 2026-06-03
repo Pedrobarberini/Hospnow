@@ -105,32 +105,6 @@ function MapBounds({
   return null;
 }
 
-function RouteFocus({ route }: { route: RouteState | null }) {
-  const map = useMap();
-
-  useEffect(() => {
-    if (!route || route.path.length < 2) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      const mapSize = map.getSize();
-      const sidePadding = Math.min(mapSize.x * 0.08, 72);
-      const topPadding = Math.min(mapSize.y * 0.28, 180);
-
-      map.fitBounds(L.latLngBounds(route.path), {
-        paddingBottomRight: [sidePadding, 60],
-        paddingTopLeft: [sidePadding, topPadding],
-        maxZoom: 15,
-      });
-    }, 120);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [map, route]);
-
-  return null;
-}
-
 function MapInteractionLock({ isLocked }: { isLocked: boolean }) {
   const map = useMap();
 
@@ -176,8 +150,8 @@ function FocusSelectedHospital({ hospital }: { hospital?: Hospital }) {
       const isMobile = window.matchMedia("(max-width: 920px)").matches;
       const mapHeight = map.getSize().y;
       const popupOffset = isMobile
-        ? Math.min(mapHeight * 0.18, 96)
-        : Math.min(mapHeight * 0.26, 150);
+        ? Math.min(mapHeight * 0.12, 76)
+        : Math.min(mapHeight * 0.16, 112);
       const centeredPosition =
         popupOffset > 0
           ? map.unproject(
@@ -637,7 +611,6 @@ export function MapView({
             userLocation={userLocation}
           />
           <FocusSelectedHospital hospital={selectedHospital} />
-          <RouteFocus route={route} />
 
           {userLocation && (
             <CircleMarker
