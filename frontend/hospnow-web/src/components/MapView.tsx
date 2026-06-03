@@ -170,6 +170,7 @@ function HospitalPopup({
   hospital: Hospital;
   route?: RouteState | null;
 }) {
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const planDisplay = getLimitedPlanDisplay(hospital.planos, 5);
   const specialtyDisplay = getLimitedSpecialtyDisplay(
     hospital.especialidades,
@@ -202,33 +203,45 @@ function HospitalPopup({
         <span>Telefone</span>
         {hospital.telefone || "Não informado"}
       </p>
-      {officialBadges.length > 0 && (
-        <div className="hospital-popup__official" aria-label="Dados oficiais">
-          {officialBadges.map((badge) => (
-            <small key={badge}>{badge}</small>
-          ))}
+      <button
+        aria-expanded={isDetailsOpen}
+        className="hospital-popup__details-toggle"
+        type="button"
+        onClick={() => setIsDetailsOpen((current) => !current)}
+      >
+        {isDetailsOpen ? "Ver menos" : "Ver mais"}
+      </button>
+      {isDetailsOpen && (
+        <div className="hospital-popup__details">
+          {officialBadges.length > 0 && (
+            <div className="hospital-popup__official" aria-label="Dados oficiais">
+              {officialBadges.map((badge) => (
+                <small key={badge}>{badge}</small>
+              ))}
+            </div>
+          )}
+          <div className="hospital-popup__tags">
+            {planDisplay.totalCount > 0 ? (
+              <>
+                {planDisplay.names.map((planName) => (
+                  <small key={planName}>{planName}</small>
+                ))}
+                {planDisplay.hiddenCount > 0 && (
+                  <small>+ {planDisplay.hiddenCount} planos</small>
+                )}
+              </>
+            ) : (
+              <small>{emptyPlanLabel}</small>
+            )}
+            {specialtyDisplay.names.map((specialtyName) => (
+              <small key={specialtyName}>{specialtyName}</small>
+            ))}
+            {specialtyDisplay.hiddenCount > 0 && (
+              <small>+ {specialtyDisplay.hiddenCount} especialidades</small>
+            )}
+          </div>
         </div>
       )}
-      <div className="hospital-popup__tags">
-        {planDisplay.totalCount > 0 ? (
-          <>
-            {planDisplay.names.map((planName) => (
-              <small key={planName}>{planName}</small>
-            ))}
-            {planDisplay.hiddenCount > 0 && (
-              <small>+ {planDisplay.hiddenCount} planos</small>
-            )}
-          </>
-        ) : (
-          <small>{emptyPlanLabel}</small>
-        )}
-        {specialtyDisplay.names.map((specialtyName) => (
-          <small key={specialtyName}>{specialtyName}</small>
-        ))}
-        {specialtyDisplay.hiddenCount > 0 && (
-          <small>+ {specialtyDisplay.hiddenCount} especialidades</small>
-        )}
-      </div>
       <div className="hospital-popup__actions">
         {googleMapsUrl && (
           <a href={googleMapsUrl} rel="noreferrer" target="_blank">

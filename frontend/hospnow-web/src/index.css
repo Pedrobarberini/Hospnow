@@ -805,6 +805,29 @@ select:disabled {
   gap: 5px;
 }
 
+.hospital-popup__details-toggle {
+  width: fit-content;
+  min-height: 28px;
+  padding: 0 9px;
+  color: var(--color-red-dark);
+  background: #ffffff;
+  border: 1px solid #f2b6bd;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.hospital-popup__details-toggle:hover {
+  background: var(--color-red-soft);
+}
+
+.hospital-popup__details {
+  display: grid;
+  gap: 6px;
+}
+
 .hospital-popup__official {
   display: flex;
   flex-wrap: wrap;
