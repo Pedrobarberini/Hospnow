@@ -163,6 +163,7 @@ function RouteFocus({ route }: { route: RouteState | null }) {
       const routePadding = getRoutePadding(route.distanceInKm, mapSize);
 
       map.invalidateSize();
+      map.closePopup();
       map.fitBounds(L.latLngBounds(route.path), {
         paddingBottomRight: [routePadding.side, routePadding.vertical],
         paddingTopLeft: [routePadding.side, routePadding.vertical],
