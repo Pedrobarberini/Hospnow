@@ -24,7 +24,7 @@ export function SearchFilter({
         <input
           type="search"
           value={searchTerm}
-          placeholder="Ex: Hospital Albert Einstein ou Unimed"
+          placeholder="Ex: Hospital Intermedica ou Unimed"
           disabled={disabled}
           onChange={(event) => onChange(event.target.value)}
         />
