@@ -4,10 +4,16 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "specialties")
+@Table(
+        name = "specialties",
+        indexes = {
+                @Index(name = "idx_specialties_nome", columnList = "nome")
+        }
+)
 public class Specialty {
 
     @Id

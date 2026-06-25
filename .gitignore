@@ -10,6 +10,7 @@
 
 backend/hospnow-api/src/main/resources/application-local.properties
 backend/hospnow-api/src/main/resources/application-*.local.properties
+backend/hospnow-api/data/
 
 frontend/hospnow-web/node_modules/
 frontend/hospnow-web/dist/

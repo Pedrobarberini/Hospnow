@@ -5,21 +5,31 @@ import jakarta.persistence.*;
 
 
 @Entity
-@Table(name = "health_plans")
+@Table(
+        name = "health_plans",
+        indexes = {
+                @Index(name = "idx_health_plans_nome", columnList = "nome"),
+                @Index(name = "idx_health_plans_codigo_ans_plano", columnList = "codigo_ans_plano"),
+                @Index(name = "idx_health_plans_fonte_dados", columnList = "fonte_dados")
+        }
+)
 public class HealthPlan {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "nome")
     private String nome;
     private String codigoAnsOperadora;
+    @Column(name = "codigo_ans_plano")
     private String codigoAnsPlano;
     private String categoriaProduto;
     private String modalidadeOperadora;
     private String segmentacaoAssistencial;
     private String abrangenciaGeografica;
     private String situacao;
+    @Column(name = "fonte_dados")
     private String fonteDados;
 
     public Long getId() {

@@ -27,17 +27,17 @@ public class HospitalService {
 
     @Transactional(readOnly = true)
     public List<Hospital> listar(){
-        return onlyOfficialHospitals(repository.findAll());
+        return repository.findOfficialHospitals();
     }
 
     @Transactional(readOnly = true)
     public List<Hospital> buscarPorPlano(String nomePlano){
-        return onlyOfficialHospitals(repository.findByPlanosNomeIgnoreCase(nomePlano));
+        return repository.findOfficialHospitalsByPlan(nomePlano);
     }
 
     @Transactional(readOnly = true)
     public List<Hospital> buscarPorEspecialidade(String nomeEspecialidade){
-        return onlyOfficialHospitals(repository.findByEspecialidadesNomeIgnoreCase(nomeEspecialidade));
+        return repository.findOfficialHospitalsBySpecialty(nomeEspecialidade);
     }
 
     @Transactional(readOnly = true)
@@ -68,21 +68,12 @@ public class HospitalService {
             hospitals = repository.search(plano, especialidade, null);
         }
 
-        hospitals = onlyOfficialHospitals(hospitals);
-
         if (busca == null) {
             return hospitals;
         }
 
         return hospitals.stream()
                 .filter(hospital -> matchesSearchTerms(hospital, busca))
-                .toList();
-    }
-
-    private List<Hospital> onlyOfficialHospitals(List<Hospital> hospitals) {
-        return hospitals.stream()
-                .filter(hospital -> hospital.getCodigoCnes() != null && !hospital.getCodigoCnes().isBlank())
-                .filter(hospital -> hospital.getFonteDados() != null && hospital.getFonteDados().equalsIgnoreCase("CNES"))
                 .toList();
     }
 

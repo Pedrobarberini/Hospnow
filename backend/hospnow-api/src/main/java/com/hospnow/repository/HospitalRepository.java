@@ -10,6 +10,34 @@ import java.util.Optional;
 
 public interface HospitalRepository extends JpaRepository<Hospital, Long> {
 
+    @Query("""
+            select distinct h from Hospital h
+            where h.codigoCnes is not null
+              and h.codigoCnes <> ''
+              and upper(h.fonteDados) = 'CNES'
+            """)
+    List<Hospital> findOfficialHospitals();
+
+    @Query("""
+            select distinct h from Hospital h
+            join h.planos p
+            where h.codigoCnes is not null
+              and h.codigoCnes <> ''
+              and upper(h.fonteDados) = 'CNES'
+              and upper(p.nome) = upper(:nomePlano)
+            """)
+    List<Hospital> findOfficialHospitalsByPlan(@Param("nomePlano") String nomePlano);
+
+    @Query("""
+            select distinct h from Hospital h
+            join h.especialidades e
+            where h.codigoCnes is not null
+              and h.codigoCnes <> ''
+              and upper(h.fonteDados) = 'CNES'
+              and upper(e.nome) = upper(:nomeEspecialidade)
+            """)
+    List<Hospital> findOfficialHospitalsBySpecialty(@Param("nomeEspecialidade") String nomeEspecialidade);
+
     List<Hospital> findByPlanosNomeIgnoreCase(String name);
 
     List<Hospital> findByEspecialidadesNomeIgnoreCase(String nome);
@@ -24,7 +52,10 @@ public interface HospitalRepository extends JpaRepository<Hospital, Long> {
             select distinct h from Hospital h
             left join h.planos p
             left join h.especialidades e
-            where (:nomePlano is null or upper(p.nome) = upper(:nomePlano))
+            where h.codigoCnes is not null
+              and h.codigoCnes <> ''
+              and upper(h.fonteDados) = 'CNES'
+              and (:nomePlano is null or upper(p.nome) = upper(:nomePlano))
               and (:nomeEspecialidade is null or upper(e.nome) = upper(:nomeEspecialidade))
               and (
                 :termoBusca is null

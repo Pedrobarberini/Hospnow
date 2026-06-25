@@ -7,22 +7,33 @@ import java.util.List;
 
 
 @Entity
-@Table(name = "hospitals")
+@Table(
+        name = "hospitals",
+        indexes = {
+                @Index(name = "idx_hospitals_official", columnList = "fonte_dados,codigo_cnes"),
+                @Index(name = "idx_hospitals_nome", columnList = "nome"),
+                @Index(name = "idx_hospitals_cidade_uf", columnList = "cidade,uf")
+        }
+)
 public class Hospital {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Column(name = "nome")
     private String nome;
     private String endereco;
     private String telefone;
     private Double latitude;
     private Double longitude;
+    @Column(name = "codigo_cnes")
     private String codigoCnes;
     private String cnpj;
     private String cep;
     private String bairro;
+    @Column(name = "cidade")
     private String cidade;
+    @Column(name = "uf")
     private String uf;
     private Integer codigoMunicipio;
     private Integer codigoTipoUnidade;
@@ -30,6 +41,7 @@ public class Hospital {
     private String tipoGestao;
     private String esferaAdministrativa;
     private String naturezaJuridica;
+    @Column(name = "fonte_dados")
     private String fonteDados;
     private LocalDate dataAtualizacaoFonte;
 
