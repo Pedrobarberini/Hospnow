@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type Ref } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+} from "react";
 import {
   CircleMarker,
   MapContainer,
@@ -20,8 +27,10 @@ import "leaflet/dist/leaflet.css";
 
 interface MapViewProps {
   addressInput?: string;
+  addressSuggestions?: AddressSuggestion[];
   containerRef?: Ref<HTMLElement>;
   hospitals: Hospital[];
+  isLoadingAddressSuggestions?: boolean;
   isSearchingAddress?: boolean;
   isLocating?: boolean;
   locationMessage?: string;
@@ -29,11 +38,18 @@ interface MapViewProps {
   onAddressSubmit?: () => void;
   onHospitalSelect?: (hospital: Hospital) => void;
   onUseLocation?: () => void;
+  searchPanel?: ReactNode;
   selectedHospitalId?: number | null;
   userLocation?: UserLocation | null;
 }
 
 export interface UserLocation {
+  latitude: number;
+  longitude: number;
+}
+
+export interface AddressSuggestion {
+  displayName: string;
   latitude: number;
   longitude: number;
 }
@@ -460,8 +476,10 @@ function ViewportHospitalMarkers({
 
 export function MapView({
   addressInput = "",
+  addressSuggestions = [],
   containerRef,
   hospitals,
+  isLoadingAddressSuggestions = false,
   isSearchingAddress = false,
   isLocating = false,
   locationMessage,
@@ -469,6 +487,7 @@ export function MapView({
   onAddressSubmit,
   onHospitalSelect,
   onUseLocation,
+  searchPanel,
   selectedHospitalId,
   userLocation,
 }: MapViewProps) {
@@ -494,9 +513,12 @@ export function MapView({
 
   useEffect(() => {
     if (!userLocation || !selectedHospital || !isValidCoordinate(selectedHospital)) {
-      setRoute(null);
-      setRouteStatus("idle");
-      return;
+      const timeoutId = window.setTimeout(() => {
+        setRoute(null);
+        setRouteStatus("idle");
+      }, 0);
+
+      return () => window.clearTimeout(timeoutId);
     }
 
     const controller = new AbortController();
@@ -544,7 +566,7 @@ export function MapView({
           ]),
         });
         setRouteStatus("ready");
-      } catch (error) {
+      } catch {
         if (controller.signal.aborted) {
           return;
         }
@@ -582,14 +604,6 @@ export function MapView({
               {isLocating ? "Localizando..." : "Usar minha localização"}
             </button>
           )}
-          <button
-            aria-pressed={!isMapLocked}
-            className="map-view__lock-button"
-            type="button"
-            onClick={() => setIsMapLocked((current) => !current)}
-          >
-            {isMapLocked ? "Liberar mapa" : "Bloquear mapa"}
-          </button>
         </div>
       </div>
 
@@ -633,33 +647,72 @@ export function MapView({
         </div>
       )}
 
-      {onAddressChange && onAddressSubmit && (
-        <form
-          className="map-view__address-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            onAddressSubmit();
-          }}
-        >
-          <label>
-            <span>Seu endereço</span>
-            <input
-              type="search"
-              value={addressInput}
-              placeholder="Ex: Taboão da Serra, SP"
-              onChange={(event) => onAddressChange(event.target.value)}
-            />
-          </label>
-          <button
-            type="submit"
-            disabled={isSearchingAddress || addressInput.trim().length < 3}
-          >
-            {isSearchingAddress ? "Buscando..." : "Comparar"}
-          </button>
-        </form>
-      )}
+      {(onAddressChange && onAddressSubmit) || searchPanel ? (
+        <div className="map-view__trip-search">
+          {onAddressChange && onAddressSubmit && (
+            <form
+              className="map-view__address-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                onAddressSubmit();
+              }}
+            >
+              <label>
+                <span>Seu endereço</span>
+                <input
+                  list="user-address-options"
+                  type="search"
+                  value={addressInput}
+                  placeholder="Ex: Taboão da Serra, SP"
+                  onChange={(event) => onAddressChange(event.target.value)}
+                />
+                <datalist id="user-address-options">
+                  {addressSuggestions.map((suggestion) => (
+                    <option
+                      key={`${suggestion.latitude}-${suggestion.longitude}-${suggestion.displayName}`}
+                      value={suggestion.displayName}
+                    />
+                  ))}
+                </datalist>
+                {isLoadingAddressSuggestions && (
+                  <small>Buscando sugestões...</small>
+                )}
+              </label>
+              <button
+                type="submit"
+                disabled={isSearchingAddress || addressInput.trim().length < 3}
+              >
+                {isSearchingAddress ? "Buscando..." : "Comparar"}
+              </button>
+            </form>
+          )}
+
+          {searchPanel && (
+            <div className="map-view__destination-search">{searchPanel}</div>
+          )}
+        </div>
+      ) : null}
 
       <div className="map-view__canvas">
+        <button
+          aria-label={
+            isMapLocked
+              ? "Liberar movimento do mapa"
+              : "Bloquear movimento do mapa"
+          }
+          aria-pressed={!isMapLocked}
+          className="map-view__map-lock-button"
+          title={isMapLocked ? "Liberar mapa" : "Bloquear mapa"}
+          type="button"
+          onClick={() => setIsMapLocked((current) => !current)}
+        >
+          <span
+            aria-hidden="true"
+            className={`map-view__lock-icon${
+              isMapLocked ? "" : " map-view__lock-icon--open"
+            }`}
+          />
+        </button>
         <MapContainer
           boxZoom={!isMapLocked}
           center={center as [number, number]}

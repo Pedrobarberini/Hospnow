@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { HospitalCard } from "../components/HospitalCard";
-import { MapView, type UserLocation } from "../components/MapView";
+import {
+  MapView,
+  type AddressSuggestion,
+  type UserLocation,
+} from "../components/MapView";
 import { PlanFilter } from "../components/PlanFilter";
 import { SearchFilter } from "../components/SearchFilter";
 import { SpecialtyFilter } from "../components/SpecialtyFilter";
@@ -12,7 +16,16 @@ import {
   getLinkedPlans,
   getPlanCategoriesForOperator,
 } from "../utils/hospitalFilter";
+import { getPlanOperatorName } from "../utils/planDisplay";
 import logoUrl from "../assets/logo-hospnow.png";
+
+function normalizeSearchText(value?: string | number | null) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
 
 function getDistanceInKm(hospital: Hospital, userLocation: UserLocation | null) {
   if (
@@ -54,6 +67,11 @@ export function Home() {
   const [selectedPlanOperator, setSelectedPlanOperator] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("");
   const [addressInput, setAddressInput] = useState("");
+  const [addressSuggestions, setAddressSuggestions] = useState<
+    AddressSuggestion[]
+  >([]);
+  const [isLoadingAddressSuggestions, setIsLoadingAddressSuggestions] =
+    useState(false);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [locationMessage, setLocationMessage] = useState("");
   const [isSearchingAddress, setIsSearchingAddress] = useState(false);
@@ -91,6 +109,99 @@ export function Home() {
     loadInitialData();
   }, []);
 
+  useEffect(() => {
+    const query = addressInput.trim();
+
+    if (query.length < 3) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        setIsLoadingAddressSuggestions(true);
+
+        const params = new URLSearchParams({
+          "accept-language": "pt-BR",
+          countrycodes: "br",
+          format: "json",
+          limit: "5",
+          q: query,
+        });
+
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?${params.toString()}`,
+          { signal: controller.signal }
+        );
+
+        if (!response.ok) {
+          throw new Error("Address suggestions request failed");
+        }
+
+        const results = (await response.json()) as Array<{
+          display_name: string;
+          lat: string;
+          lon: string;
+        }>;
+
+        setAddressSuggestions(
+          results.map((result) => ({
+            displayName: result.display_name,
+            latitude: Number(result.lat),
+            longitude: Number(result.lon),
+          }))
+        );
+      } catch {
+        if (!controller.signal.aborted) {
+          setAddressSuggestions([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoadingAddressSuggestions(false);
+        }
+      }
+    }, 360);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeoutId);
+    };
+  }, [addressInput]);
+
+  function findHospitalBySearchValue(value: string) {
+    const normalizedValue = normalizeSearchText(value);
+
+    if (!normalizedValue) {
+      return undefined;
+    }
+
+    return allHospitals.find((hospital) => {
+      const values = [
+        hospital.nome,
+        hospital.endereco,
+        [hospital.nome, hospital.endereco].filter(Boolean).join(" - "),
+      ].map(normalizeSearchText);
+
+      return values.some((item) => item === normalizedValue);
+    });
+  }
+
+  function handleSearchTermChange(value: string) {
+    setSearchTerm(value);
+
+    const matchingHospital = findHospitalBySearchValue(value);
+    setSelectedHospitalId(matchingHospital?.id ?? null);
+  }
+
+  function handleAddressInputChange(address: string) {
+    setAddressInput(address);
+
+    if (address.trim().length < 3) {
+      setAddressSuggestions([]);
+      setIsLoadingAddressSuggestions(false);
+    }
+  }
+
   function handlePlanOperatorChange(operatorName: string) {
     setSelectedPlanOperator(operatorName);
     setSelectedPlanCategory("");
@@ -108,7 +219,14 @@ export function Home() {
   }
 
   function handleSearchSubmit() {
-    setSelectedHospitalId(null);
+    const matchingHospital = findHospitalBySearchValue(searchTerm);
+
+    if (matchingHospital) {
+      handleHospitalSelect(matchingHospital);
+      return;
+    }
+
+    setSelectedHospitalId(filteredHospitals[0]?.id ?? null);
   }
 
   function handleClearFilters() {
@@ -123,6 +241,66 @@ export function Home() {
     () => getPlanCategoriesForOperator(allHospitals, selectedPlanOperator),
     [allHospitals, selectedPlanOperator]
   );
+
+  const hospitalSearchSuggestions = useMemo(() => {
+    const query = normalizeSearchText(searchTerm);
+    const suggestions = new Map<string, string>();
+
+    allHospitals
+      .filter((hospital) => {
+        if (query.length < 2) {
+          return true;
+        }
+
+        const searchableText = normalizeSearchText(
+          [
+            hospital.nome,
+            hospital.endereco,
+            hospital.bairro,
+            hospital.cidade,
+            hospital.uf,
+          ].join(" ")
+        );
+
+        return searchableText.includes(query);
+      })
+      .slice(0, 8)
+      .forEach((hospital) => {
+        if (hospital.nome) {
+          suggestions.set(
+            hospital.nome,
+            [hospital.endereco, hospital.cidade, hospital.uf]
+              .filter(Boolean)
+              .join(" - ")
+          );
+        }
+
+        if (hospital.endereco) {
+          suggestions.set(
+            hospital.endereco,
+            [hospital.nome, hospital.cidade, hospital.uf]
+              .filter(Boolean)
+              .join(" - ")
+          );
+        }
+      });
+
+    plans
+      .map(getPlanOperatorName)
+      .filter((planName) => {
+        if (!planName) {
+          return false;
+        }
+
+        return query.length < 2 || normalizeSearchText(planName).includes(query);
+      })
+      .slice(0, 4)
+      .forEach((planName) => suggestions.set(planName, "Plano de saúde"));
+
+    return Array.from(suggestions.entries())
+      .slice(0, 12)
+      .map(([value, label]) => ({ label, value }));
+  }, [allHospitals, plans, searchTerm]);
 
   const filteredHospitals = useMemo(
     () =>
@@ -230,6 +408,21 @@ export function Home() {
       return;
     }
 
+    const selectedSuggestion = addressSuggestions.find(
+      (suggestion) => suggestion.displayName === address
+    );
+
+    if (selectedSuggestion) {
+      setUserLocation({
+        latitude: selectedSuggestion.latitude,
+        longitude: selectedSuggestion.longitude,
+      });
+      setSortByDistance(true);
+      setSelectedHospitalId(null);
+      setLocationMessage(`Endereço encontrado: ${selectedSuggestion.displayName}`);
+      return;
+    }
+
     try {
       setIsSearchingAddress(true);
       setLocationMessage("");
@@ -279,6 +472,46 @@ export function Home() {
     }
   }
 
+  const mapSearchPanel = (
+    <>
+      <SearchFilter
+        searchTerm={searchTerm}
+        disabled={isLoading}
+        suggestions={hospitalSearchSuggestions}
+        onChange={handleSearchTermChange}
+        onSubmit={handleSearchSubmit}
+      />
+
+      <div className="map-view__quick-filters">
+        <PlanFilter
+          categories={planCategories}
+          plans={plans}
+          selectedCategory={selectedPlanCategory}
+          selectedOperator={selectedPlanOperator}
+          disabled={isLoading}
+          onCategoryChange={handlePlanCategoryChange}
+          onOperatorChange={handlePlanOperatorChange}
+        />
+
+        <SpecialtyFilter
+          specialties={specialties}
+          selectedSpecialty={selectedSpecialty}
+          disabled={isLoading}
+          onChange={handleSpecialtyChange}
+        />
+
+        <div className="home__stats map-view__stats">
+          <strong>{filteredHospitals.length}</strong>
+          <span>
+            {filteredHospitals.length === 1
+              ? "hospital encontrado"
+              : "hospitais encontrados"}
+          </span>
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <main className="home">
       <section className="home__hero">
@@ -297,46 +530,6 @@ export function Home() {
             experiência simples, rápida e preparada para evoluir com mapa e
             geolocalização.
           </p>
-        </div>
-      </section>
-
-      <section className="home__sticky-search" aria-label="Filtros de busca">
-        <div className="home__search-panel">
-          <SearchFilter
-            searchTerm={searchTerm}
-            disabled={isLoading}
-            onChange={(value) => {
-              setSearchTerm(value);
-              setSelectedHospitalId(null);
-            }}
-            onSubmit={handleSearchSubmit}
-          />
-
-          <PlanFilter
-            categories={planCategories}
-            plans={plans}
-            selectedCategory={selectedPlanCategory}
-            selectedOperator={selectedPlanOperator}
-            disabled={isLoading}
-            onCategoryChange={handlePlanCategoryChange}
-            onOperatorChange={handlePlanOperatorChange}
-          />
-
-          <SpecialtyFilter
-            specialties={specialties}
-            selectedSpecialty={selectedSpecialty}
-            disabled={isLoading}
-            onChange={handleSpecialtyChange}
-          />
-
-          <div className="home__stats">
-            <strong>{filteredHospitals.length}</strong>
-            <span>
-              {filteredHospitals.length === 1
-                ? "hospital encontrado"
-                : "hospitais encontrados"}
-            </span>
-          </div>
         </div>
       </section>
 
@@ -384,67 +577,72 @@ export function Home() {
             </div>
             <div className="map-view map-view--loading" />
           </div>
-        ) : filteredHospitals.length > 0 ? (
+        ) : !errorMessage ? (
           <div className="home__results">
             <div className="hospital-results-panel">
-              <div className="hospital-list-toolbar">
-                <div>
-                  <strong>
-                    {sortByDistance && userLocation
-                      ? "Mais próximos primeiro"
-                      : "Ordem padrão"}
-                  </strong>
-                  <span>
-                    {userLocation
-                      ? "Comparando pela localização informada."
-                      : "Informe um endereço ou use sua localização para ordenar."}
-                  </span>
+              {filteredHospitals.length > 0 ? (
+                <>
+                  <div className="hospital-list-toolbar">
+                    <div>
+                      <strong>
+                        {sortByDistance && userLocation
+                          ? "Mais próximos primeiro"
+                          : "Ordem padrão"}
+                      </strong>
+                      <span>
+                        {userLocation
+                          ? "Comparando pela localização informada."
+                          : "Informe um endereço ou use sua localização para ordenar."}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={!userLocation}
+                      onClick={() => setSortByDistance((current) => !current)}
+                    >
+                      {sortByDistance ? "Voltar ordem padrão" : "Mais próximos"}
+                    </button>
+                  </div>
+
+                  <div className="hospital-grid">
+                    {sortedHospitals.map((hospital) => (
+                      <HospitalCard
+                        distanceInKm={getDistanceInKm(hospital, userLocation)}
+                        isSelected={hospital.id === selectedHospitalId}
+                        key={hospital.id}
+                        hospital={hospital}
+                        onSelect={handleHospitalSelect}
+                      />
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="home__empty">
+                  <h3>Nenhum hospital encontrado</h3>
+                  <p>Tente selecionar outro plano de saúde ou especialidade.</p>
                 </div>
-
-                <button
-                  type="button"
-                  disabled={!userLocation}
-                  onClick={() => setSortByDistance((current) => !current)}
-                >
-                  {sortByDistance ? "Voltar ordem padrão" : "Mais próximos"}
-                </button>
-              </div>
-
-              <div className="hospital-grid">
-                {sortedHospitals.map((hospital) => (
-                  <HospitalCard
-                    distanceInKm={getDistanceInKm(hospital, userLocation)}
-                    isSelected={hospital.id === selectedHospitalId}
-                    key={hospital.id}
-                    hospital={hospital}
-                    onSelect={handleHospitalSelect}
-                  />
-                ))}
-              </div>
+              )}
             </div>
             <MapView
               addressInput={addressInput}
+              addressSuggestions={addressSuggestions}
               hospitals={filteredHospitals}
+              isLoadingAddressSuggestions={isLoadingAddressSuggestions}
               isSearchingAddress={isSearchingAddress}
               isLocating={isLocating}
               locationMessage={locationMessage}
-              onAddressChange={setAddressInput}
+              onAddressChange={handleAddressInputChange}
               onAddressSubmit={handleAddressSubmit}
               onHospitalSelect={handleHospitalSelect}
               onUseLocation={handleUseLocation}
               containerRef={mapViewRef}
+              searchPanel={mapSearchPanel}
               selectedHospitalId={selectedHospitalId}
               userLocation={userLocation}
             />
           </div>
-        ) : (
-          !errorMessage && (
-            <div className="home__empty">
-              <h3>Nenhum hospital encontrado</h3>
-              <p>Tente selecionar outro plano de saúde ou especialidade.</p>
-            </div>
-          )
-        )}
+        ) : null}
       </section>
 
       <footer className="home__footer" aria-label="Fontes dos dados">
