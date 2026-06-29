@@ -473,43 +473,13 @@ export function Home() {
   }
 
   const mapSearchPanel = (
-    <>
-      <SearchFilter
-        searchTerm={searchTerm}
-        disabled={isLoading}
-        suggestions={hospitalSearchSuggestions}
-        onChange={handleSearchTermChange}
-        onSubmit={handleSearchSubmit}
-      />
-
-      <div className="map-view__quick-filters">
-        <PlanFilter
-          categories={planCategories}
-          plans={plans}
-          selectedCategory={selectedPlanCategory}
-          selectedOperator={selectedPlanOperator}
-          disabled={isLoading}
-          onCategoryChange={handlePlanCategoryChange}
-          onOperatorChange={handlePlanOperatorChange}
-        />
-
-        <SpecialtyFilter
-          specialties={specialties}
-          selectedSpecialty={selectedSpecialty}
-          disabled={isLoading}
-          onChange={handleSpecialtyChange}
-        />
-
-        <div className="home__stats map-view__stats">
-          <strong>{filteredHospitals.length}</strong>
-          <span>
-            {filteredHospitals.length === 1
-              ? "hospital encontrado"
-              : "hospitais encontrados"}
-          </span>
-        </div>
-      </div>
-    </>
+    <SearchFilter
+      searchTerm={searchTerm}
+      disabled={isLoading}
+      suggestions={hospitalSearchSuggestions}
+      onChange={handleSearchTermChange}
+      onSubmit={handleSearchSubmit}
+    />
   );
 
   return (
@@ -530,6 +500,36 @@ export function Home() {
             experiência simples, rápida e preparada para evoluir com mapa e
             geolocalização.
           </p>
+        </div>
+      </section>
+
+      <section className="home__sticky-search" aria-label="Filtros de busca">
+        <div className="home__search-panel">
+          <PlanFilter
+            categories={planCategories}
+            plans={plans}
+            selectedCategory={selectedPlanCategory}
+            selectedOperator={selectedPlanOperator}
+            disabled={isLoading}
+            onCategoryChange={handlePlanCategoryChange}
+            onOperatorChange={handlePlanOperatorChange}
+          />
+
+          <SpecialtyFilter
+            specialties={specialties}
+            selectedSpecialty={selectedSpecialty}
+            disabled={isLoading}
+            onChange={handleSpecialtyChange}
+          />
+
+          <div className="home__stats">
+            <strong>{filteredHospitals.length}</strong>
+            <span>
+              {filteredHospitals.length === 1
+                ? "hospital encontrado"
+                : "hospitais encontrados"}
+            </span>
+          </div>
         </div>
       </section>
 

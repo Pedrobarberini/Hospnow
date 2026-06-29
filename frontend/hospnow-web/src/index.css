@@ -158,10 +158,7 @@ select:disabled {
   z-index: 1;
   display: grid;
   width: min(1180px, 100%);
-  grid-template-columns:
-    minmax(260px, 1.25fr)
-    repeat(3, minmax(150px, 0.85fr))
-    auto;
+  grid-template-columns: repeat(3, minmax(180px, 1fr)) auto;
   gap: 12px;
   align-items: end;
   margin: 0 auto;
@@ -535,7 +532,7 @@ select:disabled {
 
 .map-view {
   position: sticky;
-  top: 18px;
+  top: calc(var(--sticky-search-offset) + 18px);
   display: flex;
   height: auto;
   overflow: hidden;
@@ -776,34 +773,13 @@ select:disabled {
   background: var(--color-red);
 }
 
-.map-view__quick-filters {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.map-view__quick-filters .plan-filter input,
 .map-view__destination-search .search-filter input {
   min-height: 42px;
 }
 
-.map-view__quick-filters .plan-filter span,
 .map-view__destination-search .search-filter span {
   font-size: 0.78rem;
   text-transform: uppercase;
-}
-
-.map-view__stats {
-  min-height: 42px;
-  justify-content: flex-start;
-  grid-column: 1 / -1;
-  padding: 8px 0 0;
-  border-top: 1px solid var(--color-line);
-  border-left: 0;
-}
-
-.map-view__stats strong {
-  font-size: 1.45rem;
 }
 
 .map-view__canvas {
