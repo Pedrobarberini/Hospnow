@@ -175,6 +175,30 @@ export function getLinkedPlans(hospitals: Hospital[]) {
   return Array.from(plansByOperatorName.values());
 }
 
+export function getLinkedPlansFromCatalog(plans: HealthPlan[]) {
+  const plansByOperatorName = new Map<string, HealthPlan>();
+
+  plansByOperatorName.set(PUBLIC_NETWORK_OPERATOR, {
+    id: -1,
+    nome: PUBLIC_NETWORK_OPERATOR,
+  });
+
+  plans.forEach((plan) => {
+    const categoryName = getPlanCategoryName(plan);
+    const operatorName = getPlanOperatorName(plan);
+
+    if (
+      categoryName &&
+      operatorName &&
+      !plansByOperatorName.has(operatorName)
+    ) {
+      plansByOperatorName.set(operatorName, plan);
+    }
+  });
+
+  return Array.from(plansByOperatorName.values());
+}
+
 export function getPlanCategoriesForOperator(
   hospitals: Hospital[],
   planOperator: string
@@ -205,6 +229,47 @@ export function getPlanCategoriesForOperator(
         categories.add(category);
       }
     });
+  });
+
+  const categoryOrder = getCategoryOrderForOperator(planOperator);
+  const orderedCategories = categoryOrder.filter((category) =>
+    categories.has(category)
+  );
+  const extraCategories = Array.from(categories)
+    .filter((category) => !categoryOrder.includes(category))
+    .sort((first, second) => first.localeCompare(second, "pt-BR"));
+
+  return [...orderedCategories, ...extraCategories];
+}
+
+export function getPlanCategoriesForCatalog(
+  plans: HealthPlan[],
+  planOperator: string
+) {
+  const normalizedPlanOperator = normalizeSearchText(planOperator);
+
+  if (
+    normalizedPlanOperator.length >= 3 &&
+    normalizeSearchText(PUBLIC_NETWORK_OPERATOR).includes(normalizedPlanOperator)
+  ) {
+    return [];
+  }
+
+  const categories = new Set<string>();
+
+  plans.forEach((plan) => {
+    const category = getPlanCategoryName(plan);
+    const operatorSearchText = normalizeSearchText(
+      `${getPlanOperatorName(plan)} ${getPlanSearchText(plan)}`
+    );
+
+    if (
+      category &&
+      (!normalizedPlanOperator ||
+        operatorSearchText.includes(normalizedPlanOperator))
+    ) {
+      categories.add(category);
+    }
   });
 
   const categoryOrder = getCategoryOrderForOperator(planOperator);

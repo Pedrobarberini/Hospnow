@@ -1,6 +1,8 @@
 package com.hospnow.repository;
 
 import com.hospnow.entity.Hospital;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -72,6 +74,113 @@ public interface HospitalRepository extends JpaRepository<Hospital, Long> {
             @Param("nomePlano") String nomePlano,
             @Param("nomeEspecialidade") String nomeEspecialidade,
             @Param("termoBusca") String termoBusca
+    );
+
+    @Query(
+            value = """
+                    select distinct h from Hospital h
+                    left join h.planos p
+                    left join h.especialidades e
+                    where h.codigoCnes is not null
+                      and h.codigoCnes <> ''
+                      and upper(h.fonteDados) = 'CNES'
+                      and (:publicNetwork = false or p.id is null)
+                      and (
+                        :publicNetwork = true
+                        or :planOperator is null
+                        or upper(p.nome) like concat('%', upper(:planOperator), '%')
+                        or upper(p.codigoAnsOperadora) like concat('%', upper(:planOperator), '%')
+                      )
+                      and (
+                        :publicNetwork = true
+                        or :planCategory is null
+                        or upper(p.nome) like concat('%', upper(:planCategory), '%')
+                        or upper(p.categoriaProduto) like concat('%', upper(:planCategory), '%')
+                        or upper(p.codigoAnsPlano) like concat('%', upper(:planCategory), '%')
+                      )
+                      and (
+                        :specialty is null
+                        or upper(e.nome) like concat('%', upper(:specialty), '%')
+                      )
+                      and (
+                        :term is null
+                        or upper(h.nome) like concat('%', upper(:term), '%')
+                        or upper(h.endereco) like concat('%', upper(:term), '%')
+                        or upper(h.telefone) like concat('%', upper(:term), '%')
+                        or upper(h.codigoCnes) like concat('%', upper(:term), '%')
+                        or upper(h.bairro) like concat('%', upper(:term), '%')
+                        or upper(h.cidade) like concat('%', upper(:term), '%')
+                        or upper(h.uf) like concat('%', upper(:term), '%')
+                        or upper(h.tipoUnidade) like concat('%', upper(:term), '%')
+                        or upper(h.tipoGestao) like concat('%', upper(:term), '%')
+                        or upper(h.esferaAdministrativa) like concat('%', upper(:term), '%')
+                        or upper(h.naturezaJuridica) like concat('%', upper(:term), '%')
+                        or upper(p.nome) like concat('%', upper(:term), '%')
+                        or upper(p.categoriaProduto) like concat('%', upper(:term), '%')
+                        or upper(p.codigoAnsOperadora) like concat('%', upper(:term), '%')
+                        or upper(p.codigoAnsPlano) like concat('%', upper(:term), '%')
+                        or upper(p.modalidadeOperadora) like concat('%', upper(:term), '%')
+                        or upper(p.segmentacaoAssistencial) like concat('%', upper(:term), '%')
+                        or upper(p.abrangenciaGeografica) like concat('%', upper(:term), '%')
+                        or upper(e.nome) like concat('%', upper(:term), '%')
+                      )
+                    """,
+            countQuery = """
+                    select count(distinct h) from Hospital h
+                    left join h.planos p
+                    left join h.especialidades e
+                    where h.codigoCnes is not null
+                      and h.codigoCnes <> ''
+                      and upper(h.fonteDados) = 'CNES'
+                      and (:publicNetwork = false or p.id is null)
+                      and (
+                        :publicNetwork = true
+                        or :planOperator is null
+                        or upper(p.nome) like concat('%', upper(:planOperator), '%')
+                        or upper(p.codigoAnsOperadora) like concat('%', upper(:planOperator), '%')
+                      )
+                      and (
+                        :publicNetwork = true
+                        or :planCategory is null
+                        or upper(p.nome) like concat('%', upper(:planCategory), '%')
+                        or upper(p.categoriaProduto) like concat('%', upper(:planCategory), '%')
+                        or upper(p.codigoAnsPlano) like concat('%', upper(:planCategory), '%')
+                      )
+                      and (
+                        :specialty is null
+                        or upper(e.nome) like concat('%', upper(:specialty), '%')
+                      )
+                      and (
+                        :term is null
+                        or upper(h.nome) like concat('%', upper(:term), '%')
+                        or upper(h.endereco) like concat('%', upper(:term), '%')
+                        or upper(h.telefone) like concat('%', upper(:term), '%')
+                        or upper(h.codigoCnes) like concat('%', upper(:term), '%')
+                        or upper(h.bairro) like concat('%', upper(:term), '%')
+                        or upper(h.cidade) like concat('%', upper(:term), '%')
+                        or upper(h.uf) like concat('%', upper(:term), '%')
+                        or upper(h.tipoUnidade) like concat('%', upper(:term), '%')
+                        or upper(h.tipoGestao) like concat('%', upper(:term), '%')
+                        or upper(h.esferaAdministrativa) like concat('%', upper(:term), '%')
+                        or upper(h.naturezaJuridica) like concat('%', upper(:term), '%')
+                        or upper(p.nome) like concat('%', upper(:term), '%')
+                        or upper(p.categoriaProduto) like concat('%', upper(:term), '%')
+                        or upper(p.codigoAnsOperadora) like concat('%', upper(:term), '%')
+                        or upper(p.codigoAnsPlano) like concat('%', upper(:term), '%')
+                        or upper(p.modalidadeOperadora) like concat('%', upper(:term), '%')
+                        or upper(p.segmentacaoAssistencial) like concat('%', upper(:term), '%')
+                        or upper(p.abrangenciaGeografica) like concat('%', upper(:term), '%')
+                        or upper(e.nome) like concat('%', upper(:term), '%')
+                      )
+                    """
+    )
+    Page<Hospital> searchPage(
+            @Param("planOperator") String planOperator,
+            @Param("planCategory") String planCategory,
+            @Param("specialty") String specialty,
+            @Param("term") String term,
+            @Param("publicNetwork") boolean publicNetwork,
+            Pageable pageable
     );
     
 

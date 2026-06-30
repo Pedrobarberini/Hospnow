@@ -8,16 +8,18 @@ import {
 import { PlanFilter } from "../components/PlanFilter";
 import { SearchFilter } from "../components/SearchFilter";
 import { SpecialtyFilter } from "../components/SpecialtyFilter";
-import { getHospitals } from "../services/hospitalService";
+import { searchHospitals } from "../services/hospitalService";
+import { getHealthPlans } from "../services/planService";
 import { getSpecialties } from "../services/specialtyService";
 import type { HealthPlan, Hospital, Specialty } from "../types/Hospital";
 import {
-  filterHospitals,
-  getLinkedPlans,
-  getPlanCategoriesForOperator,
+  getLinkedPlansFromCatalog,
+  getPlanCategoriesForCatalog,
 } from "../utils/hospitalFilter";
 import { getPlanOperatorName } from "../utils/planDisplay";
 import logoUrl from "../assets/logo-hospnow.png";
+
+const HOSPITAL_PAGE_SIZE = 24;
 
 function normalizeSearchText(value?: string | number | null) {
   return String(value ?? "")
@@ -59,10 +61,12 @@ function getDistanceInKm(hospital: Hospital, userLocation: UserLocation | null) 
 
 export function Home() {
   const mapViewRef = useRef<HTMLElement | null>(null);
-  const [allHospitals, setAllHospitals] = useState<Hospital[]>([]);
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [planCatalog, setPlanCatalog] = useState<HealthPlan[]>([]);
   const [plans, setPlans] = useState<HealthPlan[]>([]);
   const [specialties, setSpecialties] = useState<Specialty[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [selectedPlanCategory, setSelectedPlanCategory] = useState("");
   const [selectedPlanOperator, setSelectedPlanOperator] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("");
@@ -81,7 +85,13 @@ export function Home() {
     null
   );
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshingHospitals, setIsRefreshingHospitals] = useState(false);
+  const [isLoadingMoreHospitals, setIsLoadingMoreHospitals] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [hospitalListMessage, setHospitalListMessage] = useState("");
+  const [hospitalPage, setHospitalPage] = useState(0);
+  const [hasMoreHospitals, setHasMoreHospitals] = useState(false);
+  const [totalHospitals, setTotalHospitals] = useState(0);
 
   useEffect(() => {
     async function loadInitialData() {
@@ -89,13 +99,13 @@ export function Home() {
         setIsLoading(true);
         setErrorMessage("");
 
-        const [hospitalsData, specialtiesData] = await Promise.all([
-          getHospitals(),
+        const [plansData, specialtiesData] = await Promise.all([
+          getHealthPlans(),
           getSpecialties(),
         ]);
 
-        setAllHospitals(hospitalsData);
-        setPlans(getLinkedPlans(hospitalsData));
+        setPlanCatalog(plansData);
+        setPlans(getLinkedPlansFromCatalog(plansData));
         setSpecialties(specialtiesData);
       } catch {
         setErrorMessage(
@@ -108,6 +118,75 @@ export function Home() {
 
     loadInitialData();
   }, []);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm.trim());
+    }, 320);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    if (isLoading || errorMessage) {
+      return;
+    }
+
+    let isActive = true;
+
+    async function loadHospitals() {
+      try {
+        setIsRefreshingHospitals(true);
+        setHospitalListMessage("");
+        setSelectedHospitalId(null);
+
+        const result = await searchHospitals({
+          page: 0,
+          pageSize: HOSPITAL_PAGE_SIZE,
+          planCategory: selectedPlanCategory,
+          planName: selectedPlanOperator,
+          query: debouncedSearchTerm,
+          specialtyName: selectedSpecialty,
+        });
+
+        if (!isActive) {
+          return;
+        }
+
+        setHospitals(result.content);
+        setHospitalPage(result.page);
+        setHasMoreHospitals(!result.last);
+        setTotalHospitals(result.totalElements);
+      } catch {
+        if (isActive) {
+          setHospitals([]);
+          setHospitalPage(0);
+          setHasMoreHospitals(false);
+          setTotalHospitals(0);
+          setErrorMessage(
+            "NÃ£o foi possÃ­vel carregar os hospitais. Verifique se a API estÃ¡ ativa."
+          );
+        }
+      } finally {
+        if (isActive) {
+          setIsRefreshingHospitals(false);
+        }
+      }
+    }
+
+    loadHospitals();
+
+    return () => {
+      isActive = false;
+    };
+  }, [
+    debouncedSearchTerm,
+    errorMessage,
+    isLoading,
+    selectedPlanCategory,
+    selectedPlanOperator,
+    selectedSpecialty,
+  ]);
 
   useEffect(() => {
     const query = addressInput.trim();
@@ -175,7 +254,7 @@ export function Home() {
       return undefined;
     }
 
-    return allHospitals.find((hospital) => {
+    return hospitals.find((hospital) => {
       const values = [
         hospital.nome,
         hospital.endereco,
@@ -226,7 +305,8 @@ export function Home() {
       return;
     }
 
-    setSelectedHospitalId(filteredHospitals[0]?.id ?? null);
+    setDebouncedSearchTerm(searchTerm.trim());
+    setSelectedHospitalId(hospitals[0]?.id ?? null);
   }
 
   function handleClearFilters() {
@@ -238,15 +318,15 @@ export function Home() {
   }
 
   const planCategories = useMemo(
-    () => getPlanCategoriesForOperator(allHospitals, selectedPlanOperator),
-    [allHospitals, selectedPlanOperator]
+    () => getPlanCategoriesForCatalog(planCatalog, selectedPlanOperator),
+    [planCatalog, selectedPlanOperator]
   );
 
   const hospitalSearchSuggestions = useMemo(() => {
     const query = normalizeSearchText(searchTerm);
     const suggestions = new Map<string, string>();
 
-    allHospitals
+    hospitals
       .filter((hospital) => {
         if (query.length < 2) {
           return true;
@@ -300,24 +380,11 @@ export function Home() {
     return Array.from(suggestions.entries())
       .slice(0, 12)
       .map(([value, label]) => ({ label, value }));
-  }, [allHospitals, plans, searchTerm]);
+  }, [hospitals, plans, searchTerm]);
 
-  const filteredHospitals = useMemo(
-    () =>
-      filterHospitals(allHospitals, {
-        planCategory: selectedPlanCategory,
-        planOperator: selectedPlanOperator,
-        query: searchTerm,
-        specialtyName: selectedSpecialty,
-      }),
-    [
-      allHospitals,
-      searchTerm,
-      selectedPlanCategory,
-      selectedPlanOperator,
-      selectedSpecialty,
-    ]
-  );
+  const filteredHospitals = hospitals;
+  const isLoadingInitialHospitals =
+    isRefreshingHospitals && hospitals.length === 0 && totalHospitals === 0;
 
   const sortedHospitals = useMemo(() => {
     if (!sortByDistance || !userLocation) {
@@ -472,6 +539,40 @@ export function Home() {
     }
   }
 
+  async function handleLoadMoreHospitals() {
+    if (isRefreshingHospitals || isLoadingMoreHospitals || !hasMoreHospitals) {
+      return;
+    }
+
+    try {
+      setIsLoadingMoreHospitals(true);
+      setHospitalListMessage("");
+
+      const result = await searchHospitals({
+        page: hospitalPage + 1,
+        pageSize: HOSPITAL_PAGE_SIZE,
+        planCategory: selectedPlanCategory,
+        planName: selectedPlanOperator,
+        query: debouncedSearchTerm,
+        specialtyName: selectedSpecialty,
+      });
+
+      setHospitals((currentHospitals) => [
+        ...currentHospitals,
+        ...result.content,
+      ]);
+      setHospitalPage(result.page);
+      setHasMoreHospitals(!result.last);
+      setTotalHospitals(result.totalElements);
+    } catch {
+      setHospitalListMessage(
+        "NÃ£o foi possÃ­vel carregar mais hospitais. Tente novamente."
+      );
+    } finally {
+      setIsLoadingMoreHospitals(false);
+    }
+  }
+
   const mapSearchPanel = (
     <SearchFilter
       searchTerm={searchTerm}
@@ -523,9 +624,9 @@ export function Home() {
           />
 
           <div className="home__stats">
-            <strong>{filteredHospitals.length}</strong>
+            <strong>{totalHospitals}</strong>
             <span>
-              {filteredHospitals.length === 1
+              {totalHospitals === 1
                 ? "hospital encontrado"
                 : "hospitais encontrados"}
             </span>
@@ -557,7 +658,7 @@ export function Home() {
 
         {errorMessage && <p className="home__message">{errorMessage}</p>}
 
-        {isLoading ? (
+        {isLoading || isLoadingInitialHospitals ? (
           <div className="home__results">
             <div className="hospital-results-panel">
               <div className="hospital-grid">
@@ -616,6 +717,25 @@ export function Home() {
                       />
                     ))}
                   </div>
+
+                  {hasMoreHospitals && (
+                    <button
+                      className="hospital-load-more"
+                      type="button"
+                      disabled={isRefreshingHospitals || isLoadingMoreHospitals}
+                      onClick={handleLoadMoreHospitals}
+                    >
+                      {isLoadingMoreHospitals
+                        ? "Carregando..."
+                        : "Carregar mais hospitais"}
+                    </button>
+                  )}
+
+                  {hospitalListMessage && (
+                    <p className="hospital-list-message">
+                      {hospitalListMessage}
+                    </p>
+                  )}
                 </>
               ) : (
                 <div className="home__empty">

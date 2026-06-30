@@ -360,6 +360,32 @@ select:disabled {
   background: var(--color-red-dark);
 }
 
+.hospital-load-more {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 14px;
+  color: #ffffff;
+  background: var(--color-red);
+  border: 1px solid var(--color-red);
+  border-radius: 8px;
+  font-weight: 800;
+}
+
+.hospital-load-more:hover {
+  background: var(--color-red-dark);
+}
+
+.hospital-list-message {
+  margin-top: 12px;
+  padding: 12px 14px;
+  color: #7b3131;
+  background: var(--color-red-soft);
+  border: 1px solid #f0c9c4;
+  border-radius: 8px;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
 .hospital-card {
   display: flex;
   min-height: 270px;

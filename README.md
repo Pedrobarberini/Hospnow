@@ -164,7 +164,7 @@ GET  /hospitals
 POST /hospitals
 GET  /hospitals/plan/{nomePlano}
 GET  /hospitals/specialty/{nomeEspecialidade}
-GET  /hospitals/search?plan={plan}&specialty={specialty}
+GET  /hospitals/search?plan={plan}&category={category}&specialty={specialty}&q={term}&page={page}&size={size}
 GET  /plans
 POST /plans
 GET  /specialties

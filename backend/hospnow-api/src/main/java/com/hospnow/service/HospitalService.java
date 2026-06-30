@@ -4,6 +4,8 @@ import com.hospnow.entity.Hospital;
 import com.hospnow.repository.HospitalRepository;
 import com.hospnow.util.HospitalOwnershipClassifier;
 import com.hospnow.util.HospitalSpecialtyCatalog;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -75,6 +77,41 @@ public class HospitalService {
         return hospitals.stream()
                 .filter(hospital -> matchesSearchTerms(hospital, busca))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Hospital> buscarPaginado(
+            String nomePlano,
+            String categoriaPlano,
+            String nomeEspecialidade,
+            String termoBusca,
+            Pageable pageable
+    ) {
+        boolean publicNetwork = isPublicNetworkFilter(nomePlano);
+        String plano = publicNetwork ? null : blankToNull(nomePlano);
+        String categoria = publicNetwork ? null : blankToNull(categoriaPlano);
+        String especialidade = blankToNull(nomeEspecialidade);
+        String busca = blankToNull(termoBusca);
+
+        return repository.searchPage(
+                plano,
+                categoria,
+                especialidade,
+                busca,
+                publicNetwork,
+                pageable
+        );
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private static boolean isPublicNetworkFilter(String value) {
+        String normalizedValue = normalizeSearchText(value);
+
+        return !normalizedValue.isBlank()
+                && normalizeSearchText("Rede Publica").contains(normalizedValue);
     }
 
     private boolean matchesSearchTerms(Hospital hospital, String searchTerm) {
