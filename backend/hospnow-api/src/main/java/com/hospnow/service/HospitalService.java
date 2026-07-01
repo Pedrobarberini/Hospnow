@@ -1,16 +1,20 @@
 package com.hospnow.service;
 
+import com.hospnow.entity.HealthPlan;
 import com.hospnow.entity.Hospital;
 import com.hospnow.repository.HospitalRepository;
 import com.hospnow.util.HospitalOwnershipClassifier;
 import com.hospnow.util.HospitalSpecialtyCatalog;
+import com.hospnow.util.PlanCategoryCatalog;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.text.Normalizer;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
@@ -92,15 +96,18 @@ public class HospitalService {
         String categoria = publicNetwork ? null : blankToNull(categoriaPlano);
         String especialidade = blankToNull(nomeEspecialidade);
         String busca = blankToNull(termoBusca);
+        List<Hospital> filteredHospitals = repository.findOfficialHospitals().stream()
+                .filter(hospital -> matchesPlan(hospital, plano, categoria, publicNetwork))
+                .filter(hospital -> matchesSpecialty(hospital, especialidade))
+                .filter(hospital -> busca == null || matchesSearchTerms(hospital, busca))
+                .sorted(Comparator
+                        .comparing((Hospital hospital) -> normalizeSearchText(hospital.getNome()))
+                        .thenComparing(hospital -> hospital.getId() == null ? Long.MAX_VALUE : hospital.getId()))
+                .toList();
+        int start = (int) Math.min(pageable.getOffset(), filteredHospitals.size());
+        int end = Math.min(start + pageable.getPageSize(), filteredHospitals.size());
 
-        return repository.searchPage(
-                plano,
-                categoria,
-                especialidade,
-                busca,
-                publicNetwork,
-                pageable
-        );
+        return new PageImpl<>(filteredHospitals.subList(start, end), pageable, filteredHospitals.size());
     }
 
     private static String blankToNull(String value) {
@@ -112,6 +119,90 @@ public class HospitalService {
 
         return !normalizedValue.isBlank()
                 && normalizeSearchText("Rede Publica").contains(normalizedValue);
+    }
+
+    private static boolean matchesPlan(
+            Hospital hospital,
+            String planOperator,
+            String planCategory,
+            boolean publicNetwork
+    ) {
+        if (publicNetwork) {
+            return hospital.getPlanos() == null || hospital.getPlanos().isEmpty();
+        }
+
+        if (planOperator == null && planCategory == null) {
+            return true;
+        }
+
+        if (hospital.getPlanos() == null || hospital.getPlanos().isEmpty()) {
+            return false;
+        }
+
+        return hospital.getPlanos().stream()
+                .anyMatch(plan -> matchesPlanOperator(plan, planOperator)
+                        && matchesPlanCategory(plan, planCategory));
+    }
+
+    private static boolean matchesPlanOperator(HealthPlan plan, String planOperator) {
+        if (planOperator == null) {
+            return true;
+        }
+
+        return containsNormalized(
+                planOperator,
+                PlanCategoryCatalog.normalizeOperatorName(plan.getNome()),
+                plan.getNome(),
+                plan.getCodigoAnsOperadora()
+        );
+    }
+
+    private static boolean matchesPlanCategory(HealthPlan plan, String planCategory) {
+        if (planCategory == null) {
+            return true;
+        }
+
+        String operatorName = PlanCategoryCatalog.normalizeOperatorName(plan.getNome());
+        String inferredCategory = PlanCategoryCatalog.inferCategory(
+                operatorName,
+                plan.getNome(),
+                plan.getCategoriaProduto(),
+                plan.getCodigoAnsPlano()
+        );
+
+        return containsNormalized(
+                planCategory,
+                inferredCategory,
+                plan.getNome(),
+                plan.getCategoriaProduto(),
+                plan.getCodigoAnsPlano()
+        );
+    }
+
+    private static boolean matchesSpecialty(Hospital hospital, String specialtyName) {
+        if (specialtyName == null) {
+            return true;
+        }
+
+        String normalizedSpecialty = normalizeSearchText(specialtyName);
+        boolean matchesStoredSpecialty = hospital.getEspecialidades() != null
+                && hospital.getEspecialidades().stream()
+                .anyMatch(specialty -> normalizeSearchText(specialty.getNome()).contains(normalizedSpecialty));
+
+        return matchesStoredSpecialty || HospitalSpecialtyCatalog.specialtyNamesFor(hospital).stream()
+                .anyMatch(specialty -> normalizeSearchText(specialty).contains(normalizedSpecialty));
+    }
+
+    private static boolean containsNormalized(String expectedValue, Object... candidateValues) {
+        String normalizedExpected = normalizeSearchText(expectedValue);
+
+        if (normalizedExpected.isBlank()) {
+            return true;
+        }
+
+        return Arrays.stream(candidateValues)
+                .map(value -> normalizeSearchText(value == null ? null : value.toString()))
+                .anyMatch(value -> value.contains(normalizedExpected));
     }
 
     private boolean matchesSearchTerms(Hospital hospital, String searchTerm) {
