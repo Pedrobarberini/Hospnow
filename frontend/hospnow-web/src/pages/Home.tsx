@@ -32,6 +32,78 @@ function normalizeSearchText(value?: string | number | null) {
     .trim();
 }
 
+function getSearchTerms(value: string) {
+  return normalizeSearchText(value).split(/\s+/).filter(Boolean);
+}
+
+function searchTextMatchesTerms(searchableText: string, terms: string[]) {
+  if (terms.length === 0) {
+    return true;
+  }
+
+  const normalizedSearchableText = normalizeSearchText(searchableText);
+
+  return terms.every((term) => normalizedSearchableText.includes(term));
+}
+
+function getSuggestionRank(
+  suggestion: SearchSuggestion,
+  terms: string[],
+  query: string
+) {
+  const normalizedValue = normalizeSearchText(suggestion.value);
+  const normalizedLabel = normalizeSearchText(suggestion.label);
+  const normalizedQuery = normalizeSearchText(query);
+
+  if (!normalizedQuery) {
+    return 0;
+  }
+
+  if (normalizedValue.startsWith(normalizedQuery)) {
+    return 0;
+  }
+
+  if (
+    normalizedValue
+      .split(/\s+/)
+      .some((word) => word.startsWith(normalizedQuery))
+  ) {
+    return 1;
+  }
+
+  if (
+    searchTextMatchesTerms(
+      `${suggestion.value} ${suggestion.label ?? ""}`,
+      terms
+    )
+  ) {
+    return 2;
+  }
+
+  if (normalizedLabel.includes(normalizedQuery)) {
+    return 3;
+  }
+
+  return 4;
+}
+
+function mergeSearchSuggestions(
+  preferredSuggestions: SearchSuggestion[],
+  fallbackSuggestions: SearchSuggestion[]
+) {
+  const suggestionsByValue = new Map<string, SearchSuggestion>();
+
+  [...preferredSuggestions, ...fallbackSuggestions].forEach((suggestion) => {
+    const key = normalizeSearchText(suggestion.value);
+
+    if (key && !suggestionsByValue.has(key)) {
+      suggestionsByValue.set(key, suggestion);
+    }
+  });
+
+  return Array.from(suggestionsByValue.values()).slice(0, 12);
+}
+
 function getDistanceInKm(hospital: Hospital, userLocation: UserLocation | null) {
   if (
     !userLocation ||
@@ -468,28 +540,27 @@ export function Home() {
   );
 
   const hospitalSearchSuggestions = useMemo(() => {
-    const query = normalizeSearchText(searchTerm);
+    const query = searchTerm.trim();
+    const terms = getSearchTerms(query);
     const suggestions = new Map<string, string>();
 
     hospitalSearchPool
       .filter((hospital) => {
-        if (query.length < 2) {
+        if (terms.length === 0) {
           return true;
         }
 
-        const searchableText = normalizeSearchText(
+        return searchTextMatchesTerms(
           [
             hospital.nome,
             hospital.endereco,
             hospital.bairro,
             hospital.cidade,
             hospital.uf,
-          ].join(" ")
+          ].join(" "),
+          terms
         );
-
-        return searchableText.includes(query);
       })
-      .slice(0, 8)
       .forEach((hospital) => {
         if (hospital.nome) {
           suggestions.set(
@@ -517,22 +588,31 @@ export function Home() {
           return false;
         }
 
-        return query.length < 2 || normalizeSearchText(planName).includes(query);
+        return terms.length === 0 || searchTextMatchesTerms(planName, terms);
       })
       .slice(0, 4)
       .forEach((planName) => suggestions.set(planName, "Plano de saúde"));
 
     return Array.from(suggestions.entries())
+      .map(([value, label]) => ({ label, value }))
+      .sort(
+        (firstSuggestion, secondSuggestion) =>
+          getSuggestionRank(firstSuggestion, terms, query) -
+            getSuggestionRank(secondSuggestion, terms, query) ||
+          firstSuggestion.value.localeCompare(secondSuggestion.value, "pt-BR")
+      )
       .slice(0, 12)
-      .map(([value, label]) => ({ label, value }));
+      .map((suggestion) => suggestion);
   }, [hospitalSearchPool, plans, searchTerm]);
   const currentHospitalSearchTerm = searchTerm.trim();
   const hasBackendSuggestionsForCurrentSearch =
     currentHospitalSearchTerm.length >= 2 &&
-    backendHospitalSearchSuggestionQuery === currentHospitalSearchTerm &&
-    backendHospitalSearchSuggestions.length > 0;
+    backendHospitalSearchSuggestionQuery === currentHospitalSearchTerm;
   const activeHospitalSearchSuggestions = hasBackendSuggestionsForCurrentSearch
-    ? backendHospitalSearchSuggestions
+    ? mergeSearchSuggestions(
+        backendHospitalSearchSuggestions,
+        hospitalSearchSuggestions
+      )
     : hospitalSearchSuggestions;
 
   const filteredHospitals = hospitals;
