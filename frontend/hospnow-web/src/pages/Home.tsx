@@ -6,7 +6,7 @@ import {
   type UserLocation,
 } from "../components/MapView";
 import { PlanFilter } from "../components/PlanFilter";
-import { SearchFilter } from "../components/SearchFilter";
+import { SearchFilter, type SearchSuggestion } from "../components/SearchFilter";
 import { SpecialtyFilter } from "../components/SpecialtyFilter";
 import { searchHospitals } from "../services/hospitalService";
 import { getHealthPlans } from "../services/planService";
@@ -67,6 +67,14 @@ export function Home() {
   const [specialties, setSpecialties] = useState<Specialty[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [
+    backendHospitalSearchSuggestions,
+    setBackendHospitalSearchSuggestions,
+  ] = useState<SearchSuggestion[]>([]);
+  const [
+    backendHospitalSearchSuggestionQuery,
+    setBackendHospitalSearchSuggestionQuery,
+  ] = useState("");
   const [selectedPlanCategory, setSelectedPlanCategory] = useState("");
   const [selectedPlanOperator, setSelectedPlanOperator] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("");
@@ -183,6 +191,100 @@ export function Home() {
     debouncedSearchTerm,
     errorMessage,
     isLoading,
+    selectedPlanCategory,
+    selectedPlanOperator,
+    selectedSpecialty,
+  ]);
+
+  useEffect(() => {
+    if (isLoading || errorMessage) {
+      return;
+    }
+
+    let isActive = true;
+    const query = searchTerm.trim();
+    if (query.length < 2) {
+      return;
+    }
+
+    const normalizedQuery = normalizeSearchText(query);
+    const planSuggestions = plans
+      .map(getPlanOperatorName)
+      .filter((planName) => {
+        if (!planName) {
+          return false;
+        }
+
+        return (
+          normalizedQuery.length < 2 ||
+          normalizeSearchText(planName).includes(normalizedQuery)
+        );
+      })
+      .slice(0, 4)
+      .map((planName) => ({
+        label: "Plano de saÃºde",
+        value: planName,
+      }));
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const result = await searchHospitals({
+          page: 0,
+          pageSize: 8,
+          planCategory: selectedPlanCategory,
+          planName: selectedPlanOperator,
+          query,
+          specialtyName: selectedSpecialty,
+        });
+
+        if (!isActive) {
+          return;
+        }
+
+        const suggestions = new Map<string, string>();
+
+        result.content.forEach((hospital) => {
+          if (!hospital.nome) {
+            return;
+          }
+
+          suggestions.set(
+            hospital.nome,
+            [hospital.endereco, hospital.cidade, hospital.uf]
+              .filter(Boolean)
+              .join(" - ")
+          );
+        });
+
+        planSuggestions.forEach((suggestion) => {
+          if (!suggestions.has(suggestion.value)) {
+            suggestions.set(suggestion.value, suggestion.label ?? "");
+          }
+        });
+
+        const nextSuggestions = Array.from(suggestions.entries())
+          .slice(0, 12)
+          .map(([value, label]) => ({ label, value }));
+
+        setBackendHospitalSearchSuggestionQuery(query);
+        setBackendHospitalSearchSuggestions(nextSuggestions);
+      } catch {
+        if (isActive) {
+          setBackendHospitalSearchSuggestionQuery(query);
+          setBackendHospitalSearchSuggestions(planSuggestions);
+        }
+      }
+    }, 220);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    errorMessage,
+    isLoading,
+    plans,
+    searchTerm,
     selectedPlanCategory,
     selectedPlanOperator,
     selectedSpecialty,
@@ -309,6 +411,13 @@ export function Home() {
     setSelectedHospitalId(hospitals[0]?.id ?? null);
   }
 
+  function handleSearchSuggestionSelect(value: string) {
+    const matchingHospital = findHospitalBySearchValue(value);
+
+    setDebouncedSearchTerm(value.trim());
+    setSelectedHospitalId(matchingHospital?.id ?? null);
+  }
+
   function handleClearFilters() {
     setSearchTerm("");
     setSelectedPlanCategory("");
@@ -381,6 +490,14 @@ export function Home() {
       .slice(0, 12)
       .map(([value, label]) => ({ label, value }));
   }, [hospitals, plans, searchTerm]);
+  const currentHospitalSearchTerm = searchTerm.trim();
+  const hasBackendSuggestionsForCurrentSearch =
+    currentHospitalSearchTerm.length >= 2 &&
+    backendHospitalSearchSuggestionQuery === currentHospitalSearchTerm &&
+    backendHospitalSearchSuggestions.length > 0;
+  const activeHospitalSearchSuggestions = hasBackendSuggestionsForCurrentSearch
+    ? backendHospitalSearchSuggestions
+    : hospitalSearchSuggestions;
 
   const filteredHospitals = hospitals;
   const isLoadingInitialHospitals =
@@ -577,8 +694,9 @@ export function Home() {
     <SearchFilter
       searchTerm={searchTerm}
       disabled={isLoading}
-      suggestions={hospitalSearchSuggestions}
+      suggestions={activeHospitalSearchSuggestions}
       onChange={handleSearchTermChange}
+      onSuggestionSelect={handleSearchSuggestionSelect}
       onSubmit={handleSearchSubmit}
     />
   );

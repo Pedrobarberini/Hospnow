@@ -1,11 +1,16 @@
+import { useId, useState } from "react";
+
+export interface SearchSuggestion {
+  label?: string;
+  value: string;
+}
+
 interface SearchFilterProps {
   disabled?: boolean;
-  suggestions?: Array<{
-    label?: string;
-    value: string;
-  }>;
+  suggestions?: SearchSuggestion[];
   searchTerm: string;
   onChange: (searchTerm: string) => void;
+  onSuggestionSelect?: (searchTerm: string) => void;
   onSubmit: () => void;
 }
 
@@ -14,8 +19,14 @@ export function SearchFilter({
   suggestions = [],
   searchTerm,
   onChange,
+  onSuggestionSelect,
   onSubmit,
 }: SearchFilterProps) {
+  const listId = useId();
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
+  const hasSuggestions = suggestions.length > 0;
+  const showSuggestions = isSuggestionsOpen && !disabled && hasSuggestions;
+
   return (
     <form
       className="search-filter"
@@ -27,22 +38,41 @@ export function SearchFilter({
       <label>
         <span>Buscar hospital ou plano</span>
         <input
-          list="hospital-search-options"
+          aria-autocomplete="list"
+          aria-controls={listId}
+          aria-expanded={showSuggestions}
           type="search"
           value={searchTerm}
           placeholder="Ex: Hospital Intermedica ou Unimed"
           disabled={disabled}
-          onChange={(event) => onChange(event.target.value)}
+          onBlur={() => {
+            window.setTimeout(() => setIsSuggestionsOpen(false), 120);
+          }}
+          onChange={(event) => {
+            onChange(event.target.value);
+            setIsSuggestionsOpen(true);
+          }}
+          onFocus={() => setIsSuggestionsOpen(true)}
         />
-        <datalist id="hospital-search-options">
-          {suggestions.map((suggestion) => (
-            <option
-              key={`${suggestion.value}-${suggestion.label ?? ""}`}
-              label={suggestion.label}
-              value={suggestion.value}
-            />
-          ))}
-        </datalist>
+        {showSuggestions && (
+          <div className="search-filter__suggestions" id={listId} role="listbox">
+            {suggestions.map((suggestion) => (
+              <button
+                key={`${suggestion.value}-${suggestion.label ?? ""}`}
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  onChange(suggestion.value);
+                  onSuggestionSelect?.(suggestion.value);
+                  setIsSuggestionsOpen(false);
+                }}
+              >
+                <strong>{suggestion.value}</strong>
+                {suggestion.label && <span>{suggestion.label}</span>}
+              </button>
+            ))}
+          </div>
+        )}
       </label>
       <button type="submit" disabled={disabled}>
         Buscar
