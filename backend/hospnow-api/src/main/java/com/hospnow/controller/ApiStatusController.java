@@ -9,12 +9,12 @@ import java.util.Map;
 @RestController
 public class ApiStatusController {
 
-    @GetMapping("/")
+    @GetMapping({"/", "/health"})
     public Map<String, Object> status() {
         return Map.of(
                 "name", "HospNow API",
                 "status", "online",
-                "endpoints", List.of("/hospitals", "/plans", "/specialties")
+                "endpoints", List.of("/hospitals", "/hospitals/search", "/plans", "/specialties")
         );
     }
 }

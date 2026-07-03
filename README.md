@@ -160,6 +160,7 @@ HospNow
 
 ```txt
 GET  /
+GET  /health
 GET  /hospitals
 POST /hospitals
 GET  /hospitals/plan/{nomePlano}

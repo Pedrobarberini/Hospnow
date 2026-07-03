@@ -47,7 +47,7 @@ jobs:
       - name: Wake backend
         run: |
           curl --retry 3 --retry-all-errors --max-time 120 --fail --silent --show-error \
-            "$API_BASE_URL/"
+            "$API_BASE_URL/health"
 
       - name: Import CNES hospitals
         run: |
