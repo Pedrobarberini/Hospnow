@@ -185,7 +185,7 @@ export function Home() {
           setHasMoreHospitals(false);
           setTotalHospitals(0);
           setErrorMessage(
-            "NÃ£o foi possÃ­vel carregar os hospitais. Verifique se a API estÃ¡ ativa."
+            "Não foi possível carregar os hospitais. Verifique se a API está ativa."
           );
         }
       } finally {
@@ -235,7 +235,7 @@ export function Home() {
       })
       .slice(0, 4)
       .map((planName) => ({
-        label: "Plano de saÃºde",
+        label: "Plano de saúde",
         value: planName,
       }));
 
@@ -257,16 +257,23 @@ export function Home() {
         const suggestions = new Map<string, string>();
 
         result.content.forEach((hospital) => {
-          if (!hospital.nome) {
-            return;
+          if (hospital.nome) {
+            suggestions.set(
+              hospital.nome,
+              [hospital.endereco, hospital.cidade, hospital.uf]
+                .filter(Boolean)
+                .join(" - ")
+            );
           }
 
-          suggestions.set(
-            hospital.nome,
-            [hospital.endereco, hospital.cidade, hospital.uf]
-              .filter(Boolean)
-              .join(" - ")
-          );
+          if (hospital.endereco) {
+            suggestions.set(
+              hospital.endereco,
+              [hospital.nome, hospital.cidade, hospital.uf]
+                .filter(Boolean)
+                .join(" - ")
+            );
+          }
         });
 
         planSuggestions.forEach((suggestion) => {
@@ -397,6 +404,19 @@ export function Home() {
       setAddressSuggestions([]);
       setIsLoadingAddressSuggestions(false);
     }
+  }
+
+  function handleAddressSuggestionSelect(suggestion: AddressSuggestion) {
+    setAddressInput(suggestion.displayName);
+    setAddressSuggestions([]);
+    setIsLoadingAddressSuggestions(false);
+    setUserLocation({
+      latitude: suggestion.latitude,
+      longitude: suggestion.longitude,
+    });
+    setSortByDistance(true);
+    setSelectedHospitalId(null);
+    setLocationMessage(`Endereço encontrado: ${suggestion.displayName}`);
   }
 
   function handlePlanOperatorChange(operatorName: string) {
@@ -705,7 +725,7 @@ export function Home() {
       setTotalHospitals(result.totalElements);
     } catch {
       setHospitalListMessage(
-        "NÃ£o foi possÃ­vel carregar mais hospitais. Tente novamente."
+        "Não foi possível carregar mais hospitais. Tente novamente."
       );
     } finally {
       setIsLoadingMoreHospitals(false);
@@ -893,6 +913,7 @@ export function Home() {
               isLocating={isLocating}
               locationMessage={locationMessage}
               onAddressChange={handleAddressInputChange}
+              onAddressSuggestionSelect={handleAddressSuggestionSelect}
               onAddressSubmit={handleAddressSubmit}
               onHospitalSelect={handleHospitalSelect}
               onUseLocation={handleUseLocation}

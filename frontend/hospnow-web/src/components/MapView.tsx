@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -35,6 +36,7 @@ interface MapViewProps {
   isLocating?: boolean;
   locationMessage?: string;
   onAddressChange?: (address: string) => void;
+  onAddressSuggestionSelect?: (suggestion: AddressSuggestion) => void;
   onAddressSubmit?: () => void;
   onHospitalSelect?: (hospital: Hospital) => void;
   onUseLocation?: () => void;
@@ -484,6 +486,7 @@ export function MapView({
   isLocating = false,
   locationMessage,
   onAddressChange,
+  onAddressSuggestionSelect,
   onAddressSubmit,
   onHospitalSelect,
   onUseLocation,
@@ -491,7 +494,10 @@ export function MapView({
   selectedHospitalId,
   userLocation,
 }: MapViewProps) {
+  const addressSuggestionListId = useId();
   const [isMapLocked, setIsMapLocked] = useState(true);
+  const [isAddressSuggestionsOpen, setIsAddressSuggestionsOpen] =
+    useState(false);
   const [route, setRoute] = useState<RouteState | null>(null);
   const [routeStatus, setRouteStatus] = useState<
     "idle" | "loading" | "ready" | "error"
@@ -500,6 +506,10 @@ export function MapView({
   const selectedHospital = visibleHospitals.find(
     (hospital) => hospital.id === selectedHospitalId
   );
+  const showAddressSuggestions =
+    isAddressSuggestionsOpen &&
+    !isSearchingAddress &&
+    addressSuggestions.length > 0;
   const googleMapsRouteUrl =
     userLocation && selectedHospital
       ? getGoogleMapsDirectionsUrl(userLocation, selectedHospital)
@@ -660,20 +670,50 @@ export function MapView({
               <label>
                 <span>Seu endereço</span>
                 <input
-                  list="user-address-options"
+                  aria-autocomplete="list"
+                  aria-controls={addressSuggestionListId}
+                  aria-expanded={showAddressSuggestions}
                   type="search"
                   value={addressInput}
                   placeholder="Ex: Taboão da Serra, SP"
-                  onChange={(event) => onAddressChange(event.target.value)}
+                  onBlur={() => {
+                    window.setTimeout(
+                      () => setIsAddressSuggestionsOpen(false),
+                      120
+                    );
+                  }}
+                  onChange={(event) => {
+                    onAddressChange(event.target.value);
+                    setIsAddressSuggestionsOpen(true);
+                  }}
+                  onFocus={() => setIsAddressSuggestionsOpen(true)}
                 />
-                <datalist id="user-address-options">
-                  {addressSuggestions.map((suggestion) => (
-                    <option
-                      key={`${suggestion.latitude}-${suggestion.longitude}-${suggestion.displayName}`}
-                      value={suggestion.displayName}
-                    />
-                  ))}
-                </datalist>
+                {showAddressSuggestions && (
+                  <div
+                    className="map-view__address-suggestions"
+                    id={addressSuggestionListId}
+                    role="listbox"
+                  >
+                    {addressSuggestions.map((suggestion) => (
+                      <button
+                        key={`${suggestion.latitude}-${suggestion.longitude}-${suggestion.displayName}`}
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => {
+                          if (onAddressSuggestionSelect) {
+                            onAddressSuggestionSelect(suggestion);
+                          } else {
+                            onAddressChange(suggestion.displayName);
+                          }
+
+                          setIsAddressSuggestionsOpen(false);
+                        }}
+                      >
+                        <strong>{suggestion.displayName}</strong>
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {isLoadingAddressSuggestions && (
                   <small>Buscando sugestões...</small>
                 )}
