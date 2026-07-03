@@ -8,7 +8,10 @@ import {
 import { PlanFilter } from "../components/PlanFilter";
 import { SearchFilter, type SearchSuggestion } from "../components/SearchFilter";
 import { SpecialtyFilter } from "../components/SpecialtyFilter";
-import { searchHospitals } from "../services/hospitalService";
+import {
+  searchAllHospitals,
+  searchHospitals,
+} from "../services/hospitalService";
 import { getHealthPlans } from "../services/planService";
 import { getSpecialties } from "../services/specialtyService";
 import type { HealthPlan, Hospital, Specialty } from "../types/Hospital";
@@ -62,6 +65,7 @@ function getDistanceInKm(hospital: Hospital, userLocation: UserLocation | null) 
 export function Home() {
   const mapViewRef = useRef<HTMLElement | null>(null);
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [mapHospitals, setMapHospitals] = useState<Hospital[]>([]);
   const [planCatalog, setPlanCatalog] = useState<HealthPlan[]>([]);
   const [plans, setPlans] = useState<HealthPlan[]>([]);
   const [specialties, setSpecialties] = useState<Specialty[]>([]);
@@ -148,26 +152,35 @@ export function Home() {
         setHospitalListMessage("");
         setSelectedHospitalId(null);
 
-        const result = await searchHospitals({
-          page: 0,
-          pageSize: HOSPITAL_PAGE_SIZE,
+        const searchFilters = {
           planCategory: selectedPlanCategory,
           planName: selectedPlanOperator,
           query: debouncedSearchTerm,
           specialtyName: selectedSpecialty,
-        });
+        };
+
+        const [result, mapHospitalResults] = await Promise.all([
+          searchHospitals({
+            ...searchFilters,
+            page: 0,
+            pageSize: HOSPITAL_PAGE_SIZE,
+          }),
+          searchAllHospitals(searchFilters),
+        ]);
 
         if (!isActive) {
           return;
         }
 
         setHospitals(result.content);
+        setMapHospitals(mapHospitalResults);
         setHospitalPage(result.page);
         setHasMoreHospitals(!result.last);
         setTotalHospitals(result.totalElements);
       } catch {
         if (isActive) {
           setHospitals([]);
+          setMapHospitals([]);
           setHospitalPage(0);
           setHasMoreHospitals(false);
           setTotalHospitals(0);
@@ -349,6 +362,9 @@ export function Home() {
     };
   }, [addressInput]);
 
+  const hospitalSearchPool =
+    mapHospitals.length > 0 ? mapHospitals : hospitals;
+
   function findHospitalBySearchValue(value: string) {
     const normalizedValue = normalizeSearchText(value);
 
@@ -356,7 +372,7 @@ export function Home() {
       return undefined;
     }
 
-    return hospitals.find((hospital) => {
+    return hospitalSearchPool.find((hospital) => {
       const values = [
         hospital.nome,
         hospital.endereco,
@@ -435,7 +451,7 @@ export function Home() {
     const query = normalizeSearchText(searchTerm);
     const suggestions = new Map<string, string>();
 
-    hospitals
+    hospitalSearchPool
       .filter((hospital) => {
         if (query.length < 2) {
           return true;
@@ -489,7 +505,7 @@ export function Home() {
     return Array.from(suggestions.entries())
       .slice(0, 12)
       .map(([value, label]) => ({ label, value }));
-  }, [hospitals, plans, searchTerm]);
+  }, [hospitalSearchPool, plans, searchTerm]);
   const currentHospitalSearchTerm = searchTerm.trim();
   const hasBackendSuggestionsForCurrentSearch =
     currentHospitalSearchTerm.length >= 2 &&
@@ -500,6 +516,8 @@ export function Home() {
     : hospitalSearchSuggestions;
 
   const filteredHospitals = hospitals;
+  const mapVisibleHospitals =
+    mapHospitals.length > 0 ? mapHospitals : filteredHospitals;
   const isLoadingInitialHospitals =
     isRefreshingHospitals && hospitals.length === 0 && totalHospitals === 0;
 
@@ -508,17 +526,21 @@ export function Home() {
       return filteredHospitals;
     }
 
-    return [...filteredHospitals].sort((firstHospital, secondHospital) => {
-      const firstDistance =
-        getDistanceInKm(firstHospital, userLocation) ??
-        Number.POSITIVE_INFINITY;
-      const secondDistance =
-        getDistanceInKm(secondHospital, userLocation) ??
-        Number.POSITIVE_INFINITY;
+    const visibleListLimit = Math.max(filteredHospitals.length, 1);
 
-      return firstDistance - secondDistance;
-    });
-  }, [filteredHospitals, sortByDistance, userLocation]);
+    return [...mapVisibleHospitals]
+      .sort((firstHospital, secondHospital) => {
+        const firstDistance =
+          getDistanceInKm(firstHospital, userLocation) ??
+          Number.POSITIVE_INFINITY;
+        const secondDistance =
+          getDistanceInKm(secondHospital, userLocation) ??
+          Number.POSITIVE_INFINITY;
+
+        return firstDistance - secondDistance;
+      })
+      .slice(0, visibleListLimit);
+  }, [filteredHospitals, mapVisibleHospitals, sortByDistance, userLocation]);
 
   function handleHospitalSelect(hospital: Hospital) {
     setSelectedHospitalId(hospital.id);
@@ -865,7 +887,7 @@ export function Home() {
             <MapView
               addressInput={addressInput}
               addressSuggestions={addressSuggestions}
-              hospitals={filteredHospitals}
+              hospitals={mapVisibleHospitals}
               isLoadingAddressSuggestions={isLoadingAddressSuggestions}
               isSearchingAddress={isSearchingAddress}
               isLocating={isLocating}

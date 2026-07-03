@@ -12,6 +12,19 @@ export interface PagedResponse<T> {
   last: boolean;
 }
 
+export interface HospitalSearchFilters {
+  page?: number;
+  pageSize?: number;
+  planCategory?: string;
+  planName?: string;
+  query?: string;
+  specialtyName?: string;
+}
+
+type HospitalSearchCriteria = Omit<HospitalSearchFilters, "page" | "pageSize">;
+
+const MAX_SEARCH_PAGE_SIZE = 100;
+
 export async function getHospitals(): Promise<Hospital[]> {
   const response = await api.get<Hospital[]>("/hospitals");
   return response.data;
@@ -25,14 +38,9 @@ export async function getHospitalsByPlan(planName: string): Promise<Hospital[]> 
   return response.data;
 }
 
-export async function searchHospitals(filters: {
-  page?: number;
-  pageSize?: number;
-  planCategory?: string;
-  planName?: string;
-  query?: string;
-  specialtyName?: string;
-}): Promise<PagedResponse<Hospital>> {
+export async function searchHospitals(
+  filters: HospitalSearchFilters
+): Promise<PagedResponse<Hospital>> {
   const params = new URLSearchParams();
 
   if (filters.query) {
@@ -70,16 +78,41 @@ export async function searchHospitals(filters: {
   }
 }
 
+export async function searchAllHospitals(
+  filters: HospitalSearchCriteria
+): Promise<Hospital[]> {
+  const firstPage = await searchHospitals({
+    ...filters,
+    page: 0,
+    pageSize: MAX_SEARCH_PAGE_SIZE,
+  });
+
+  if (firstPage.last) {
+    return firstPage.content;
+  }
+
+  const hospitals = [...firstPage.content];
+
+  for (let page = 1; page < firstPage.totalPages; page += 1) {
+    const result = await searchHospitals({
+      ...filters,
+      page,
+      pageSize: firstPage.size || MAX_SEARCH_PAGE_SIZE,
+    });
+
+    hospitals.push(...result.content);
+
+    if (result.last) {
+      break;
+    }
+  }
+
+  return hospitals;
+}
+
 function paginateHospitals(
   hospitals: Hospital[],
-  filters: {
-    page?: number;
-    pageSize?: number;
-    planCategory?: string;
-    planName?: string;
-    query?: string;
-    specialtyName?: string;
-  }
+  filters: HospitalSearchFilters
 ): PagedResponse<Hospital> {
   const page = Math.max(0, filters.page ?? 0);
   const size = Math.max(1, filters.pageSize ?? 24);
