@@ -618,7 +618,7 @@ select:disabled {
   top: calc(var(--sticky-search-offset) + 18px);
   display: flex;
   height: auto;
-  overflow: hidden;
+  overflow: visible;
   min-height: 820px;
   flex-direction: column;
   background: #ffffff;
@@ -912,7 +912,9 @@ select:disabled {
 .map-view__canvas {
   position: relative;
   min-height: 560px;
+  overflow: hidden;
   flex: 1 0 560px;
+  border-radius: 0 0 8px 8px;
   scroll-margin-top: 12px;
 }
 
