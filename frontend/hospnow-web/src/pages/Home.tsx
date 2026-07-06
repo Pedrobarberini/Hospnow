@@ -12,12 +12,11 @@ import {
   searchAllHospitals,
   searchHospitals,
 } from "../services/hospitalService";
-import { getHealthPlans } from "../services/planService";
-import { getSpecialties } from "../services/specialtyService";
 import type { HealthPlan, Hospital, Specialty } from "../types/Hospital";
 import {
-  getLinkedPlansFromCatalog,
-  getPlanCategoriesForCatalog,
+  filterHospitals,
+  getLinkedPlans,
+  getPlanCategoriesForOperator,
 } from "../utils/hospitalFilter";
 import { getPlanOperatorName } from "../utils/planDisplay";
 import logoUrl from "../assets/logo-hospnow.png";
@@ -104,6 +103,24 @@ function mergeSearchSuggestions(
   return Array.from(suggestionsByValue.values()).slice(0, 12);
 }
 
+function getSpecialtiesFromHospitals(hospitals: Hospital[]) {
+  const specialtiesByName = new Map<string, Specialty>();
+
+  hospitals.forEach((hospital) => {
+    hospital.especialidades?.forEach((specialty) => {
+      const key = normalizeSearchText(specialty.nome);
+
+      if (key && !specialtiesByName.has(key)) {
+        specialtiesByName.set(key, specialty);
+      }
+    });
+  });
+
+  return Array.from(specialtiesByName.values()).sort((first, second) =>
+    first.nome.localeCompare(second.nome, "pt-BR")
+  );
+}
+
 function getDistanceInKm(hospital: Hospital, userLocation: UserLocation | null) {
   if (
     !userLocation ||
@@ -138,9 +155,10 @@ export function Home() {
   const mapViewRef = useRef<HTMLElement | null>(null);
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [mapHospitals, setMapHospitals] = useState<Hospital[]>([]);
-  const [planCatalog, setPlanCatalog] = useState<HealthPlan[]>([]);
+  const [filterSourceHospitals, setFilterSourceHospitals] = useState<
+    Hospital[]
+  >([]);
   const [plans, setPlans] = useState<HealthPlan[]>([]);
-  const [specialties, setSpecialties] = useState<Specialty[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [
@@ -183,14 +201,10 @@ export function Home() {
         setIsLoading(true);
         setErrorMessage("");
 
-        const [plansData, specialtiesData] = await Promise.all([
-          getHealthPlans(),
-          getSpecialties(),
-        ]);
+        const hospitalsData = await searchAllHospitals({});
 
-        setPlanCatalog(plansData);
-        setPlans(getLinkedPlansFromCatalog(plansData));
-        setSpecialties(specialtiesData);
+        setFilterSourceHospitals(hospitalsData);
+        setPlans(getLinkedPlans(hospitalsData));
       } catch {
         setErrorMessage(
           "Não foi possível carregar os hospitais. Verifique se a API está ativa."
@@ -534,9 +548,63 @@ export function Home() {
     setSelectedHospitalId(null);
   }
 
+  const filterOptionSourceHospitals =
+    filterSourceHospitals.length > 0
+      ? filterSourceHospitals
+      : mapHospitals.length > 0
+        ? mapHospitals
+        : hospitals;
+
+  const planOptionHospitals = useMemo(
+    () =>
+      filterHospitals(filterOptionSourceHospitals, {
+        planCategory: selectedPlanCategory,
+        planOperator: "",
+        query: "",
+        specialtyName: selectedSpecialty,
+      }),
+    [filterOptionSourceHospitals, selectedPlanCategory, selectedSpecialty]
+  );
+
+  const availablePlans = useMemo(
+    () => getLinkedPlans(planOptionHospitals),
+    [planOptionHospitals]
+  );
+
+  const categoryOptionHospitals = useMemo(
+    () =>
+      filterHospitals(filterOptionSourceHospitals, {
+        planCategory: "",
+        planOperator: selectedPlanOperator,
+        query: "",
+        specialtyName: selectedSpecialty,
+      }),
+    [filterOptionSourceHospitals, selectedPlanOperator, selectedSpecialty]
+  );
+
   const planCategories = useMemo(
-    () => getPlanCategoriesForCatalog(planCatalog, selectedPlanOperator),
-    [planCatalog, selectedPlanOperator]
+    () =>
+      getPlanCategoriesForOperator(
+        categoryOptionHospitals,
+        selectedPlanOperator
+      ),
+    [categoryOptionHospitals, selectedPlanOperator]
+  );
+
+  const specialtyOptionHospitals = useMemo(
+    () =>
+      filterHospitals(filterOptionSourceHospitals, {
+        planCategory: selectedPlanCategory,
+        planOperator: selectedPlanOperator,
+        query: "",
+        specialtyName: "",
+      }),
+    [filterOptionSourceHospitals, selectedPlanCategory, selectedPlanOperator]
+  );
+
+  const availableSpecialties = useMemo(
+    () => getSpecialtiesFromHospitals(specialtyOptionHospitals),
+    [specialtyOptionHospitals]
   );
 
   const hospitalSearchSuggestions = useMemo(() => {
@@ -848,7 +916,7 @@ export function Home() {
         <div className="home__search-panel">
           <PlanFilter
             categories={planCategories}
-            plans={plans}
+            plans={availablePlans}
             selectedCategory={selectedPlanCategory}
             selectedOperator={selectedPlanOperator}
             disabled={isLoading}
@@ -857,7 +925,7 @@ export function Home() {
           />
 
           <SpecialtyFilter
-            specialties={specialties}
+            specialties={availableSpecialties}
             selectedSpecialty={selectedSpecialty}
             disabled={isLoading}
             onChange={handleSpecialtyChange}
