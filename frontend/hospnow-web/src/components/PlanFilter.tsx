@@ -20,6 +20,8 @@ export function PlanFilter({
   selectedCategory,
   selectedOperator,
 }: PlanFilterProps) {
+  const isCategoryDisabled =
+    disabled || !selectedOperator || categories.length === 0;
   const planOptions = Array.from(
     plans.reduce((options, plan) => {
       const displayName = getPlanOperatorName(plan);
@@ -54,10 +56,12 @@ export function PlanFilter({
         <span>Categoria do plano</span>
         <select
           value={selectedCategory}
-          disabled={disabled || categories.length === 0}
+          disabled={isCategoryDisabled}
           onChange={(event) => onCategoryChange(event.target.value)}
         >
-          <option value="">Todas as categorias</option>
+          <option value="">
+            {selectedOperator ? "Todas as categorias" : "Escolha um plano"}
+          </option>
           {categories.map((category) => (
             <option key={category} value={category}>
               {category}
