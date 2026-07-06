@@ -188,6 +188,7 @@ select:disabled {
 }
 
 .plan-filter input,
+.plan-filter select,
 .search-filter input {
   width: 100%;
   min-height: 48px;
@@ -199,7 +200,12 @@ select:disabled {
   outline: none;
 }
 
+.plan-filter select {
+  cursor: pointer;
+}
+
 .plan-filter input:focus,
+.plan-filter select:focus,
 .search-filter input:focus {
   border-color: var(--color-red);
   box-shadow: 0 0 0 3px rgba(227, 6, 19, 0.14);

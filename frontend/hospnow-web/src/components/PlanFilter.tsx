@@ -36,40 +36,34 @@ export function PlanFilter({
     <>
       <label className="plan-filter">
         <span>Plano de saúde</span>
-        <input
-          list="health-plan-options"
-          placeholder="Todos os planos"
+        <select
           value={selectedOperator}
-          disabled={disabled}
+          disabled={disabled || planOptions.length === 0}
           onChange={(event) => onOperatorChange(event.target.value)}
-        />
-        <datalist id="health-plan-options">
+        >
+          <option value="">Todos os planos</option>
           {planOptions.map(([displayName]) => (
             <option key={displayName} value={displayName}>
               {displayName}
             </option>
           ))}
-        </datalist>
+        </select>
       </label>
 
       <label className="plan-filter">
         <span>Categoria do plano</span>
-        <input
-          list="plan-category-options"
-          placeholder={
-            selectedOperator ? "Todas as categorias" : "Digite uma categoria"
-          }
+        <select
           value={selectedCategory}
           disabled={disabled || categories.length === 0}
           onChange={(event) => onCategoryChange(event.target.value)}
-        />
-        <datalist id="plan-category-options">
+        >
+          <option value="">Todas as categorias</option>
           {categories.map((category) => (
             <option key={category} value={category}>
               {category}
             </option>
           ))}
-        </datalist>
+        </select>
       </label>
     </>
   );
