@@ -33,7 +33,7 @@ public class HospitalService {
 
     @Transactional(readOnly = true)
     public List<Hospital> listar(){
-        return repository.findOfficialHospitals();
+        return balancePublicHospitals(repository.findOfficialHospitals(), false);
     }
 
     @Transactional(readOnly = true)
@@ -43,7 +43,10 @@ public class HospitalService {
 
     @Transactional(readOnly = true)
     public List<Hospital> buscarPorEspecialidade(String nomeEspecialidade){
-        return repository.findOfficialHospitalsBySpecialty(nomeEspecialidade);
+        return balancePublicHospitals(
+                repository.findOfficialHospitalsBySpecialty(nomeEspecialidade),
+                false
+        );
     }
 
     @Transactional(readOnly = true)
@@ -60,27 +63,23 @@ public class HospitalService {
         String busca = termoBusca == null || termoBusca.isBlank() ? null : termoBusca.trim();
         List<Hospital> hospitals;
 
-        if (plano == null && especialidade == null && busca == null) {
-            return listar();
-        }
-
         if (plano == null && especialidade == null) {
-            hospitals = listar();
+            hospitals = repository.findOfficialHospitals();
         } else if (plano != null && especialidade == null) {
-            hospitals = buscarPorPlano(plano);
+            hospitals = repository.findOfficialHospitalsByPlan(plano);
         } else if (plano == null) {
-            hospitals = buscarPorEspecialidade(especialidade);
+            hospitals = repository.findOfficialHospitalsBySpecialty(especialidade);
         } else {
             hospitals = repository.search(plano, especialidade, null);
         }
 
-        if (busca == null) {
-            return hospitals;
+        if (busca != null) {
+            hospitals = hospitals.stream()
+                    .filter(hospital -> matchesSearchTerms(hospital, busca))
+                    .toList();
         }
 
-        return hospitals.stream()
-                .filter(hospital -> matchesSearchTerms(hospital, busca))
-                .toList();
+        return balancePublicHospitals(hospitals, false);
     }
 
     @Transactional(readOnly = true)
@@ -104,10 +103,47 @@ public class HospitalService {
                         .comparing((Hospital hospital) -> normalizeSearchText(hospital.getNome()))
                         .thenComparing(hospital -> hospital.getId() == null ? Long.MAX_VALUE : hospital.getId()))
                 .toList();
-        int start = (int) Math.min(pageable.getOffset(), filteredHospitals.size());
-        int end = Math.min(start + pageable.getPageSize(), filteredHospitals.size());
+        List<Hospital> balancedHospitals = balancePublicHospitals(filteredHospitals, publicNetwork);
+        int start = (int) Math.min(pageable.getOffset(), balancedHospitals.size());
+        int end = Math.min(start + pageable.getPageSize(), balancedHospitals.size());
 
-        return new PageImpl<>(filteredHospitals.subList(start, end), pageable, filteredHospitals.size());
+        return new PageImpl<>(balancedHospitals.subList(start, end), pageable, balancedHospitals.size());
+    }
+
+    private static List<Hospital> balancePublicHospitals(List<Hospital> hospitals, boolean publicNetworkRequested) {
+        if (publicNetworkRequested || hospitals.isEmpty()) {
+            return hospitals;
+        }
+
+        long nonPublicCount = hospitals.stream()
+                .filter(hospital -> !isPublicHospital(hospital))
+                .count();
+
+        if (nonPublicCount == 0) {
+            return hospitals;
+        }
+
+        int publicLimit = (int) Math.min(nonPublicCount, Integer.MAX_VALUE);
+        int[] retainedPublicHospitals = {0};
+
+        return hospitals.stream()
+                .filter(hospital -> {
+                    if (!isPublicHospital(hospital)) {
+                        return true;
+                    }
+
+                    if (retainedPublicHospitals[0] >= publicLimit) {
+                        return false;
+                    }
+
+                    retainedPublicHospitals[0] += 1;
+                    return true;
+                })
+                .toList();
+    }
+
+    private static boolean isPublicHospital(Hospital hospital) {
+        return HospitalOwnershipClassifier.PUBLIC.equals(HospitalOwnershipClassifier.classify(hospital));
     }
 
     private static String blankToNull(String value) {
